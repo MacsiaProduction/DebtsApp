@@ -7,7 +7,6 @@ The Debt Calculation Network API is a Spring-based REST service that allows user
 - [Getting Started](#getting-started)
 - [Authentication](#authentication)
 - [REST Endpoints](#rest-endpoints)
-- [Telegram Bot Integration](#telegram-bot-integration)
 - [Endpoints](#endpoints)
   - [List of All Transactions](#list-of-all-transactions)
   - [List of Transactions Related to a User](#list-of-transactions-related-to-a-user)
@@ -18,6 +17,7 @@ The Debt Calculation Network API is a Spring-based REST service that allows user
   - [List of All Debts](#list-of-all-debts)
   - [Change User Password](#change-user-password)
   - [User Login](#user-login)
+- [Telegram Bot Integration](#telegram-bot-integration)
 - [Telegram Bot Commands](#telegram-bot-commands)
 
 ## API Endpoints
