@@ -6,6 +6,8 @@ The Debt Calculation Network API is a Spring-based REST service that allows user
 - [API Endpoints](#api-endpoints)
 - [Getting Started](#getting-started)
 - [Authentication](#authentication)
+- [REST Endpoints](#rest-endpoints)
+- [Telegram Bot Integration](#telegram-bot-integration)
 - [Endpoints](#endpoints)
   - [List of All Transactions](#list-of-all-transactions)
   - [List of Transactions Related to a User](#list-of-transactions-related-to-a-user)
@@ -16,9 +18,10 @@ The Debt Calculation Network API is a Spring-based REST service that allows user
   - [List of All Debts](#list-of-all-debts)
   - [Change User Password](#change-user-password)
   - [User Login](#user-login)
+- [Telegram Bot Commands](#telegram-bot-commands)
 
 ## API Endpoints
-This API provides the following endpoints:
+This API provides the following REST endpoints:
 
 - `GET /transactions`: Get a list of all transactions.
 - `GET /transactions/related?name={user}`: Get a list of transactions related to a specific user.
@@ -27,7 +30,7 @@ This API provides the following endpoints:
 - `GET /debts/between?from={fromName}&to={toName}`: Get the debt between two users.
 - `GET /debts/related?name={user}`: Get a list of debts related to a specific user.
 - `GET /debts`: Get a list of all debts.
-- `POST /change-password`: Change the user's password.
+- `POST /change-password`: Change a user's password.
 - `POST /login`: Authenticate a user.
 
 ## Getting Started
@@ -36,9 +39,9 @@ This API provides the following endpoints:
 3. Build and run the project using Maven or your preferred IDE.
 
 ## Authentication
-Some endpoints require user authentication using Spring Security. You need to provide valid credentials to access these endpoints. To authenticate, use the `/login` endpoint and provide a valid username and password in the request body.
+Some REST endpoints require user authentication using Spring Security. You need to provide valid credentials to access these endpoints. To authenticate, use the `/login` endpoint and provide a valid username and password in the request body.
 
-## Endpoints
+## REST Endpoints
 
 ### List of All Transactions
 - **Endpoint:** `GET /transactions`
@@ -80,6 +83,29 @@ Some endpoints require user authentication using Spring Security. You need to pr
 
 Please note that some endpoints may return a `BAD_REQUEST` status if there are validation or authentication issues.
 
----
+## Telegram Bot Integration
+This API also includes a Telegram bot integration using the `TelegramController` class. The bot provides a convenient way to interact with the service.
+
+To use the Telegram bot, search for it by its username, and start a chat. The bot will respond to the following commands:
+
+## Telegram Bot Commands
+
+- `/start`: Start a chat with the bot. The bot will welcome you and register your username.
+- `/add TgUsername(no @) {sum}`: Add a new transaction from yourself to another user (without '@' symbol) with a specified amount.
+- `/get TgUsername`: Check the size of the debt between you and another user.
+- `/history`: Retrieve a list of all related transactions.
+- `/debts`: Retrieve a list of all related debts.
+- `/new_password`: Generate a new password for web interface.
+
+## Command Examples
+
+- `/add John 100`: Add a transaction from your username to 'John' with a sum of 100.
+- `/get Alice`: Check the debt between you and 'Alice'.
+- `/history`: View a list of all transactions related to you.
+- `/debts`: View a list of all debts related to you.
+- `/new_password`: Generate a new password for web interface access.
+
+For any other commands, the bot will respond with "Not recognized."
+
 
 This README provides an overview of the Debt Calculation Network API and its endpoints. For detailed information on request and response formats, please refer to the API documentation or code comments in the `WebController` class.
