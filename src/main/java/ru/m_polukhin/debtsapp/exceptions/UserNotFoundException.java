@@ -1,4 +1,4 @@
-package ru.m_polukhin.debtsapp.utils;
+package ru.m_polukhin.debtsapp.exceptions;
 
 public class UserNotFoundException extends Exception {
     public UserNotFoundException(String s) {

@@ -1,4 +1,4 @@
-package ru.m_polukhin.debtsapp.utils;
+package ru.m_polukhin.debtsapp.configs;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;

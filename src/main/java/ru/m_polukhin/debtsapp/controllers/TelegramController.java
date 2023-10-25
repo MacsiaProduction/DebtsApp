@@ -6,10 +6,11 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import ru.m_polukhin.debtsapp.services.DebtsDAO;
+import ru.m_polukhin.debtsapp.services.SecurityService;
 import ru.m_polukhin.debtsapp.services.TelegramService;
-import ru.m_polukhin.debtsapp.utils.BotConfig;
-import ru.m_polukhin.debtsapp.utils.ParseException;
-import ru.m_polukhin.debtsapp.utils.UserNotFoundException;
+import ru.m_polukhin.debtsapp.configs.BotConfig;
+import ru.m_polukhin.debtsapp.exceptions.ParseException;
+import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,7 @@ public class TelegramController extends TelegramLongPollingBot {
     //todo adding to group
     private final DebtsDAO dao;
     private final TelegramService telegramService;
+    private final SecurityService securityService;
     private final String botName;
     private static final String START = "/start";
     private static final String ADD = "/add";
@@ -27,12 +29,14 @@ public class TelegramController extends TelegramLongPollingBot {
     private static final String HISTORY = "/history";
     private static final String HELP = "/help";
     private static final String DEBTS = "/debts";
+    private static final String PASSWORD = "/new_password";
 
     @Autowired
-    public TelegramController(DebtsDAO dao, TelegramService telegramService, BotConfig config) {
+    public TelegramController(DebtsDAO dao, TelegramService telegramService, SecurityService securityService, BotConfig config) {
         super(config.getToken());
         this.dao = dao;
         this.telegramService = telegramService;
+        this.securityService = securityService;
         this.botName = config.getBotName();
     }
 
@@ -51,6 +55,7 @@ public class TelegramController extends TelegramLongPollingBot {
             case GET -> getCommand(chatId, username, message);
             case HISTORY -> historyCommand(chatId, user);
             case DEBTS -> debtsCommand(chatId, username);
+            case PASSWORD -> generatePassword(chatId, username);
             default -> unknownCommand(chatId);
         }
     }
@@ -90,7 +95,7 @@ public class TelegramController extends TelegramLongPollingBot {
         } catch (ParseException e) {
             text = "Wrong format: "+e.getMessage();
         } catch (UserNotFoundException e) {
-            text = "User with name " + e.getMessage() + " isn't registered";
+            text = e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
     }
@@ -130,12 +135,27 @@ public class TelegramController extends TelegramLongPollingBot {
                 /get TgUsername - checks size of debt
                 /history - all related transactions
                 /debts - all related debts
+                /new_password - creates a new password for web interface
                 """;
         telegramService.sendMessage(chatId, text);
     }
 
     private void unknownCommand(Long chatId) {
         var text = "Not recognised";
+        telegramService.sendMessage(chatId, text);
+    }
+
+    private void generatePassword(Long chatId, String username) {
+        String text;
+        try {
+            var password = securityService.generatePassword(username);
+            text = """
+                Your new password is: %s!
+                """;
+            text = String.format(text, password);
+        } catch (UserNotFoundException e) {
+            text = "User with name " + e.getMessage() + " isn't registered";
+        }
         telegramService.sendMessage(chatId, text);
     }
 

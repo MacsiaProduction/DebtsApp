@@ -1,4 +1,4 @@
-package ru.m_polukhin.debtsapp.utils;
+package ru.m_polukhin.debtsapp.configs;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

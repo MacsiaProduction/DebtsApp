@@ -2,8 +2,9 @@ package ru.m_polukhin.debtsapp.models;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import ru.m_polukhin.debtsapp.exceptions.ParseException;
+import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -31,9 +32,11 @@ public final class Transaction {
     @Column(name = "time")
     private Timestamp timestamp;
 
-    public Transaction(Long sum, Long senderId, Long recipientId) {
+    public Transaction(Long sum, Long senderId, Long recipientId) throws ParseException, UserNotFoundException {
         this.sum = sum;
         this.senderId = senderId;
         this.recipientId = recipientId;
+        if (recipientId.equals(senderId)) throw new UserNotFoundException("Transaction should be between different people");
+        if (sum < 0) throw new ParseException("Value of transaction should be positive");
     }
 }

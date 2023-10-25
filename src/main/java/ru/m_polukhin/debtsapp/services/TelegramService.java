@@ -6,7 +6,7 @@ import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ru.m_polukhin.debtsapp.utils.BotConfig;
+import ru.m_polukhin.debtsapp.configs.BotConfig;
 
 @Service
 public class TelegramService extends DefaultAbsSender {

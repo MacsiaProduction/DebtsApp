@@ -6,8 +6,8 @@ import ru.m_polukhin.debtsapp.models.*;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
-import ru.m_polukhin.debtsapp.utils.ParseException;
-import ru.m_polukhin.debtsapp.utils.UserNotFoundException;
+import ru.m_polukhin.debtsapp.exceptions.ParseException;
+import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,15 +28,14 @@ public class DebtsDAO {
     public void addTransaction(String sender, String recipient, Long sum) throws UserNotFoundException, ParseException {
         Long senderId = getIdByName(sender);
         Long recipientId = getIdByName(recipient);
-        if (sum <= 0) throw new ParseException("Value should be positive");
-        if (recipientId.equals(senderId)) throw new UserNotFoundException(sender);
-        transactionRepository.save(new Transaction(sum, senderId, recipientId));
+        var transaction = new Transaction(sum, senderId, recipientId);
+        transactionRepository.save(transaction);
         debtRepository.increaseDebt(senderId, recipientId, sum);
     }
 
     public void addUser(Long userId, String username) {
         if(userRepository.findById(userId).isEmpty()) {
-            userRepository.save(new UserInfo(userId, username));
+            userRepository.save(new UserData(userId, username));
         }
     }
 
@@ -72,6 +71,18 @@ public class DebtsDAO {
         return coverDebts(debtRepository.findAll());
     }
 
+    public UserData findUserByName(String username) throws UserNotFoundException {
+        var user = userRepository.findByTelegramName(username);
+        if (user == null) throw new UserNotFoundException(username);
+        return user;
+    }
+
+    public void changeUserPassword(Long userId, String newPasswordHashed) throws UserNotFoundException {
+        var userOptional = userRepository.findById(userId);
+        if(userOptional.isEmpty()) throw new UserNotFoundException("User with id " + userId + "wasn't found");
+        UserData user = userOptional.get();
+        userRepository.save(new UserData(userId, user.getTelegramName(), newPasswordHashed));
+    }
 
     private Long getIdByName(String username) throws UserNotFoundException {
         var user = userRepository.findByTelegramName(username);
@@ -85,7 +96,7 @@ public class DebtsDAO {
         return userInfo.get().getTelegramName();
     }
 
-    public List<TransactionInfo> coverTransactions(Iterable<Transaction> transactions){
+    private List<TransactionInfo> coverTransactions(Iterable<Transaction> transactions){
         var list = new ArrayList<TransactionInfo>();
         try {
             for (var t : transactions) {
@@ -97,7 +108,7 @@ public class DebtsDAO {
         return list;
     }
 
-    public List<DebtInfo> coverDebts(Iterable<Debt> debts) {
+    private List<DebtInfo> coverDebts(Iterable<Debt> debts) {
         var list = new ArrayList<DebtInfo>();
         try {
             for (var t : debts) {
