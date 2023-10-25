@@ -3,7 +3,6 @@
 The Debt Calculation Network API is a Spring-based REST service that allows users to manage transactions and calculate debts between users. This service uses Spring JDBC, Spring Security, and PostgreSQL as the database.
 
 ## Table of Contents
-- [API Endpoints](#api-endpoints)
 - [Getting Started](#getting-started)
 - [Authentication](#authentication)
 - [REST Endpoints](#rest-endpoints)
@@ -19,19 +18,6 @@ The Debt Calculation Network API is a Spring-based REST service that allows user
   - [User Login](#user-login)
 - [Telegram Bot Integration](#telegram-bot-integration)
 - [Telegram Bot Commands](#telegram-bot-commands)
-
-## API Endpoints
-This API provides the following REST endpoints:
-
-- `GET /transactions`: Get a list of all transactions.
-- `GET /transactions/related?name={user}`: Get a list of transactions related to a specific user.
-- `GET /transactions/between?sender={sender}&recipient={recipient}`: Get a list of transactions between two users.
-- `POST /new`: Add a new transaction.
-- `GET /debts/between?from={fromName}&to={toName}`: Get the debt between two users.
-- `GET /debts/related?name={user}`: Get a list of debts related to a specific user.
-- `GET /debts`: Get a list of all debts.
-- `POST /change-password`: Change a user's password.
-- `POST /login`: Authenticate a user.
 
 ## Getting Started
 1. Clone the project from the repository.
