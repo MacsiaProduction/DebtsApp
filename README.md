@@ -1,89 +1,85 @@
-#Debt Calculation Network Service
-The Debt Calculation Network Service is a RESTful web service built using Spring Boot that allows users to manage and calculate debts between users by recording transactions. It includes endpoints for managing transactions, calculating debts, and changing user passwords.
+# Debt Calculation Network API
 
-Prerequisites
-Java Development Kit (JDK) - 1.8 or higher
-Apache Maven - Build and dependency management tool
-PostgreSQL - Database for storing user and transaction data
-Getting Started
-Clone the project from the repository.
+The Debt Calculation Network API is a Spring-based REST service that allows users to manage transactions and calculate debts between users. This service uses Spring JDBC, Spring Security, and PostgreSQL as the database.
 
-bash
-Copy code
-git clone <repository-url>
-Navigate to the project directory.
+## Table of Contents
+- [API Endpoints](#api-endpoints)
+- [Getting Started](#getting-started)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [List of All Transactions](#list-of-all-transactions)
+  - [List of Transactions Related to a User](#list-of-transactions-related-to-a-user)
+  - [List of Transactions Between Users](#list-of-transactions-between-users)
+  - [Add a New Transaction](#add-a-new-transaction)
+  - [Get Debt Between Users](#get-debt-between-users)
+  - [List of Debts Related to a User](#list-of-debts-related-to-a-user)
+  - [List of All Debts](#list-of-all-debts)
+  - [Change User Password](#change-user-password)
+  - [User Login](#user-login)
 
-bash
-Copy code
-cd debtsapp
-Build and package the application using Maven.
+## API Endpoints
+This API provides the following endpoints:
 
-bash
-Copy code
-mvn package
-Create a PostgreSQL database and configure the database connection settings in application.properties:
+- `GET /transactions`: Get a list of all transactions.
+- `GET /transactions/related?name={user}`: Get a list of transactions related to a specific user.
+- `GET /transactions/between?sender={sender}&recipient={recipient}`: Get a list of transactions between two users.
+- `POST /new`: Add a new transaction.
+- `GET /debts/between?from={fromName}&to={toName}`: Get the debt between two users.
+- `GET /debts/related?name={user}`: Get a list of debts related to a specific user.
+- `GET /debts`: Get a list of all debts.
+- `POST /change-password`: Change the user's password.
+- `POST /login`: Authenticate a user.
 
-properties
-Copy code
-spring.datasource.url=jdbc:postgresql://localhost:5432/debtsdb
-spring.datasource.username=your-username
-spring.datasource.password=your-password
-Run the application.
+## Getting Started
+1. Clone the project from the repository.
+2. Set up your PostgreSQL database and update the database configuration in the `application.properties` file.
+3. Build and run the project using Maven or your preferred IDE.
 
-bash
-Copy code
-java -jar target/debtsapp-0.0.1-SNAPSHOT.jar
-The service should now be up and running on http://localhost:8080.
+## Authentication
+Some endpoints require user authentication using Spring Security. You need to provide valid credentials to access these endpoints. To authenticate, use the `/login` endpoint and provide a valid username and password in the request body.
 
-Endpoints
+## Endpoints
 
-List All Transactions
-GET /transactions
-Returns a list of all transactions.
+### List of All Transactions
+- **Endpoint:** `GET /transactions`
+- **Description:** Retrieve a list of all transactions.
 
-Find All Transactions Related to a User
-GET /transactions/related?name={user}
-Returns a list of all transactions related to a specific user.
+### List of Transactions Related to a User
+- **Endpoint:** `GET /transactions/related?name={user}`
+- **Description:** Retrieve a list of transactions related to a specific user.
 
-Find All Transactions Between Users
-GET /transactions/between?sender={sender}&recipient={recipient}
-Returns a list of all transactions from one user to another.
+### List of Transactions Between Users
+- **Endpoint:** `GET /transactions/between?sender={sender}&recipient={recipient}`
+- **Description:** Retrieve a list of transactions between two users.
 
-Add New Transaction
-POST /new
-Add a new transaction by providing transaction details in the request body.
+### Add a New Transaction
+- **Endpoint:** `POST /new`
+- **Description:** Add a new transaction.
+- **Request Body:** Provide a JSON object containing transaction details.
 
-Get Debt Between Users
-GET /debts/between?from={fromName}&to={toName}
-Returns the debt amount between two users.
+### Get Debt Between Users
+- **Endpoint:** `GET /debts/between?from={fromName}&to={toName}`
+- **Description:** Get the debt between two users.
 
-Find All Debts Related to a User
-GET /debts/related?name={user}
-Returns a list of all debts related to a specific user.
+### List of Debts Related to a User
+- **Endpoint:** `GET /debts/related?name={user}`
+- **Description:** Retrieve a list of debts related to a specific user.
 
-Find All Debts
-GET /debts
-Returns a list of all debts.
+### List of All Debts
+- **Endpoint:** `GET /debts`
+- **Description:** Retrieve a list of all debts.
 
-Change User Password
-POST /change-password
-Change a user's password by providing the necessary details in the request body.
+### Change User Password
+- **Endpoint:** `POST /change-password`
+- **Description:** Change a user's password.
+- **Request Body:** Provide a JSON object with the old and new passwords.
 
-Authenticate User
-POST /login
-Authenticate a user by providing login credentials in the request body.
+### User Login
+- **Endpoint:** `POST /login`
+- **Description:** Authenticate a user. Provide valid credentials in the request body.
 
-Swagger API Documentation
-The service includes Swagger for API documentation. You can access the Swagger UI at http://localhost:8080/swagger-ui.html.
+Please note that some endpoints may return a `BAD_REQUEST` status if there are validation or authentication issues.
 
-Security
-The application uses Spring Security to secure the endpoints and authenticate users.
+---
 
-Database
-The application uses PostgreSQL as the database to store user and transaction data. You can find the database schema and table structure in the application.
-
-Contributing
-Contributions to the project are welcome. Please follow the standard GitHub fork and pull request workflow.
-
-Authors
-Macsia
+This README provides an overview of the Debt Calculation Network API and its endpoints. For detailed information on request and response formats, please refer to the API documentation or code comments in the `WebController` class.
