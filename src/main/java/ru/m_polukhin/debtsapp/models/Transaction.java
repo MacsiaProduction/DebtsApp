@@ -36,7 +36,7 @@ public final class Transaction {
         this.sum = sum;
         this.senderId = senderId;
         this.recipientId = recipientId;
-        if (recipientId.equals(senderId)) throw new UserNotFoundException("Transaction should be between different people");
+        if (recipientId.equals(senderId)) throw new UserNotFoundException(senderId);
         if (sum < 0) throw new ParseException("Value of transaction should be positive");
     }
 }

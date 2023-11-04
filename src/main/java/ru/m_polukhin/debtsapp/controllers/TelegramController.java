@@ -23,13 +23,13 @@ public class TelegramController extends TelegramLongPollingBot {
     private final TelegramService telegramService;
     private final SecurityService securityService;
     private final String botName;
+
     private static final String START = "/start";
     private static final String ADD = "/add";
     private static final String GET = "/get";
     private static final String HISTORY = "/history";
     private static final String HELP = "/help";
     private static final String DEBTS = "/debts";
-    private static final String PASSWORD = "/new_password";
 
     @Autowired
     public TelegramController(DebtsDAO dao, TelegramService telegramService, SecurityService securityService, BotConfig config) {
@@ -47,15 +47,22 @@ public class TelegramController extends TelegramLongPollingBot {
         var chatId = update.getMessage().getChatId();
         var user = update.getMessage().getFrom();
         var username = user.getUserName();
-        var command = message.split(" ")[0];
+        var messageSplit = message.split(" ");
+        var command = messageSplit[0];
         switch (command) {
-            case START -> startCommand(chatId, user);
+            case START -> {
+                var len = messageSplit.length;
+                if (len == 1) {
+                    startCommand(chatId, user);
+                } else {
+                    activateSession(chatId, user, messageSplit[1]);
+                }
+            }
             case ADD -> addCommand(chatId, username, message);
             case HELP -> helpCommand(chatId);
             case GET -> getCommand(chatId, username, message);
             case HISTORY -> historyCommand(chatId, user);
             case DEBTS -> debtsCommand(chatId, username);
-            case PASSWORD -> generatePassword(chatId, username);
             default -> unknownCommand(chatId);
         }
     }
@@ -63,7 +70,7 @@ public class TelegramController extends TelegramLongPollingBot {
     private void historyCommand(Long chatId, User user) {
         String text;
         try {
-            var res = dao.findAllTransactionsRelated(user.getUserName());
+            var res = dao.findAllTransactionsRelated(user.getId());
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
@@ -145,17 +152,12 @@ public class TelegramController extends TelegramLongPollingBot {
         telegramService.sendMessage(chatId, text);
     }
 
-    private void generatePassword(Long chatId, String username) {
-        String text;
-        try {
-            var password = securityService.generatePassword(username);
-            text = """
-                Your new password is: %s!
+    private void activateSession(Long chatId, User user, String message) {
+        securityService.activateSessionToken(user.getId(), message);
+        String text = """
+                Your session was authenticated!
+                You have 1 minute ;)
                 """;
-            text = String.format(text, password);
-        } catch (UserNotFoundException e) {
-            text = "User with name " + e.getMessage() + " isn't registered";
-        }
         telegramService.sendMessage(chatId, text);
     }
 

@@ -10,6 +10,7 @@ import java.io.Serializable;
 
 @Entity
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "debts")
 public final class Debt {
     @EmbeddedId
@@ -18,11 +19,6 @@ public final class Debt {
     @Getter
     @Column(name = "sum")
     private Long sum;
-
-    public Debt(Long senderId, Long recipientId, Long sum) {
-        this.id = new DebtId(senderId, recipientId);
-        this.sum = sum;
-    }
 
     public Long getRecipientId() {
         return id.getRecipientId();

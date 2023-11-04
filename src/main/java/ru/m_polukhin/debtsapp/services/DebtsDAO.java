@@ -1,9 +1,13 @@
 package ru.m_polukhin.debtsapp.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import ru.m_polukhin.debtsapp.dto.DebtInfo;
+import ru.m_polukhin.debtsapp.dto.TransactionInfo;
 import ru.m_polukhin.debtsapp.models.*;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
+import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
@@ -13,17 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class DebtsDAO {
-    TransactionRepository transactionRepository;
-    DebtRepository debtRepository;
-    UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private DebtsDAO(TransactionRepository repository, DebtRepository debtRepository, UserRepository userRepository) {
-        this.transactionRepository = repository;
-        this.debtRepository = debtRepository;
-        this.userRepository = userRepository;
-    }
+    private final TransactionRepository transactionRepository;
+    private final DebtRepository debtRepository;
+    private final UserRepository userRepository;
+    private final SessionRepository sessionRepository;
 
     public void addTransaction(String sender, String recipient, Long sum) throws UserNotFoundException, ParseException {
         Long senderId = getIdByName(sender);
@@ -33,26 +34,22 @@ public class DebtsDAO {
         debtRepository.increaseDebt(senderId, recipientId, sum);
     }
 
+    //todo update nickname
     public void addUser(Long userId, String username) {
-        if(userRepository.findById(userId).isEmpty()) {
+        if(!userRepository.existsById(userId)) {
             userRepository.save(new UserData(userId, username));
         }
     }
 
+    //todo page
     public List<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient) throws UserNotFoundException {
         var res = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender),getIdByName(recipient));
         return coverTransactions(res);
     }
 
-    public List<TransactionInfo> findAllTransactionsRelated(String username) throws UserNotFoundException {
-        Long userId = getIdByName(username);
+    public List<TransactionInfo> findAllTransactionsRelated(Long userId) throws UserNotFoundException {
         List<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId,userId);
         return coverTransactions(transactions);
-    }
-
-    public List<TransactionInfo> findAllTransactions() {
-        var res = transactionRepository.findAll();
-        return coverTransactions(res);
     }
 
     public DebtInfo getDebt(String sender, String receiver) throws UserNotFoundException {
@@ -67,27 +64,35 @@ public class DebtsDAO {
         return coverDebts(debtRepository.findAllDebtsRelated(getIdByName(username)));
     }
 
-    public List<DebtInfo> findAllDebts() {
-        return coverDebts(debtRepository.findAll());
-    }
-
     public UserData findUserByName(String username) throws UserNotFoundException {
-        var user = userRepository.findByTelegramName(username);
-        if (user == null) throw new UserNotFoundException(username);
-        return user;
+        var userOptional = userRepository.findByTelegramName(username);
+        if(userOptional.isEmpty()) throw new UserNotFoundException(username);
+        return userOptional.get();
     }
 
-    public void changeUserPassword(Long userId, String newPasswordHashed) throws UserNotFoundException {
-        var userOptional = userRepository.findById(userId);
-        if(userOptional.isEmpty()) throw new UserNotFoundException("User with id " + userId + "wasn't found");
-        UserData user = userOptional.get();
-        userRepository.save(new UserData(userId, user.getTelegramName(), newPasswordHashed));
+    public void addActiveSession(ActiveSessionToken activeSessionToken) {
+        sessionRepository.save(activeSessionToken);
     }
 
-    private Long getIdByName(String username) throws UserNotFoundException {
-        var user = userRepository.findByTelegramName(username);
-        if (user == null) throw new UserNotFoundException(username);
-        return userRepository.findByTelegramName(username).getId();
+    //todo give a client some extra number to not search in db
+    public ActiveSessionToken getActiveSession(String sessionToken) throws UserNotFoundException {
+        var tokens = sessionRepository.findAll();
+        for(var token: tokens) {
+            if (passwordEncoder.matches(sessionToken, token.getHash())) {
+                return token;
+            }
+        }
+        throw new UserNotFoundException(sessionToken);
+    }
+
+    public ActiveSessionToken getUsersSession(Long userId) throws UserNotFoundException {
+        var token = sessionRepository.findById(userId);
+        if (token.isEmpty()) throw new UserNotFoundException(userId);
+        return token.get();
+    }
+
+    public Long getIdByName(String username) throws UserNotFoundException {
+        return findUserByName(username).getId();
     }
 
     private String getNameById(Long id) throws UserNotFoundException {
@@ -96,26 +101,18 @@ public class DebtsDAO {
         return userInfo.get().getTelegramName();
     }
 
-    private List<TransactionInfo> coverTransactions(Iterable<Transaction> transactions){
+    private List<TransactionInfo> coverTransactions(Iterable<Transaction> transactions) throws UserNotFoundException {
         var list = new ArrayList<TransactionInfo>();
-        try {
-            for (var t : transactions) {
-                list.add(new TransactionInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
-            }
-        } catch (UserNotFoundException e) {
-            throw new RuntimeException(e);
+        for (var t : transactions) {
+            list.add(new TransactionInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
         }
         return list;
     }
 
-    private List<DebtInfo> coverDebts(Iterable<Debt> debts) {
+    private List<DebtInfo> coverDebts(Iterable<Debt> debts) throws UserNotFoundException {
         var list = new ArrayList<DebtInfo>();
-        try {
-            for (var t : debts) {
-                list.add(new DebtInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
-            }
-        } catch (UserNotFoundException e) {
-            throw new RuntimeException(e);
+        for (var t : debts) {
+            list.add(new DebtInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
         }
         return list;
     }

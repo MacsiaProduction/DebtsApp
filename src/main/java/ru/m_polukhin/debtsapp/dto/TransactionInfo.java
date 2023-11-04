@@ -1,4 +1,4 @@
-package ru.m_polukhin.debtsapp.models;
+package ru.m_polukhin.debtsapp.dto;
 
 public record TransactionInfo(String sender, String recipient, Long sum) {
     @Override

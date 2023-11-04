@@ -1,77 +1,77 @@
 package ru.m_polukhin.debtsapp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.passay.CharacterData;
 import org.passay.CharacterRule;
 import org.passay.EnglishCharacterData;
 import org.passay.PasswordGenerator;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import ru.m_polukhin.debtsapp.exceptions.PasswordsNotMatch;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
-import ru.m_polukhin.debtsapp.models.ChangePasswordDto;
-import ru.m_polukhin.debtsapp.models.LogInDTO;
+import ru.m_polukhin.debtsapp.utils.TokenUtils;
+
+import java.util.Date;
 
 import static org.passay.IllegalCharacterRule.ERROR_CODE;
 
 @Service
+@RequiredArgsConstructor
 public class SecurityService {
-    private final AuthenticationManager authenticationManager;
+    private final DaoAuthenticationProvider authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final TokenUtils tokenUtils;
     private final DebtsDAO dao;
 
-    @Autowired
-    public SecurityService(AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder, DebtsDAO dao) {
-        this.authenticationManager = authenticationManager;
-        this.passwordEncoder = passwordEncoder;
-        this.dao = dao;
-    }
+    public ResponseEntity<?> authenticateUser(String sessionToken) {
+        try {
+            var session = dao.getActiveSession(sessionToken);
+            //check lifetime
+            if (session.getExpirationDate().before(new Date())) {
+                throw new UserNotFoundException("Session Expired");
+            }
 
-    public void authenticateUser(LogInDTO loginDto) {
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(
-                        loginDto.getName(), loginDto.getPassword()));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
-
-    public void updatePassword(ChangePasswordDto dto) throws UserNotFoundException, PasswordsNotMatch {
-        var user = dao.findUserByName(dto.getUsername());
-
-        if (user.getPasswordHash() == null) throw new PasswordsNotMatch();
-
-        if (passwordEncoder.matches(dto.getOldPassword(), user.getPasswordHash())) {
-            dao.changeUserPassword(user.getId(), passwordEncoder.encode(dto.getNewPassword()));
-        } else {
-            throw new PasswordsNotMatch();
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    session.getUserId(), sessionToken));
+            var jwtToken =  tokenUtils.generateJwtToken(String.valueOf(session.getUserId()));
+            return ResponseEntity.ok(jwtToken);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
         }
     }
 
-    /**
-     * @return generated password
-     */
-    public String generatePassword(String username) throws UserNotFoundException {
-        var password = generatePassayPassword();
-        dao.changeUserPassword(dao.findUserByName(username).getId(), passwordEncoder.encode(password));
-        return password;
+    public void activateSessionToken(Long userId, String sessionToken) {
+        var token = tokenUtils.generateSessionToken(userId, passwordEncoder.encode(sessionToken));
+        dao.addActiveSession(token);
+    }
+
+    //smth may fall if two same tokens generated
+    public String generateSessionToken() {
+        String token = generatePassayPassword();
+        try {
+            dao.getActiveSession(token);
+            return generateSessionToken();
+        } catch (UserNotFoundException e) {
+            return token;
+        }
     }
 
     private String generatePassayPassword() {
         PasswordGenerator gen = new PasswordGenerator();
         CharacterData lowerCaseChars = EnglishCharacterData.LowerCase;
         CharacterRule lowerCaseRule = new CharacterRule(lowerCaseChars);
-        lowerCaseRule.setNumberOfCharacters(2);
+        lowerCaseRule.setNumberOfCharacters(5);
 
         CharacterData upperCaseChars = EnglishCharacterData.UpperCase;
         CharacterRule upperCaseRule = new CharacterRule(upperCaseChars);
-        upperCaseRule.setNumberOfCharacters(2);
+        upperCaseRule.setNumberOfCharacters(5);
 
         CharacterData digitChars = EnglishCharacterData.Digit;
         CharacterRule digitRule = new CharacterRule(digitChars);
-        digitRule.setNumberOfCharacters(2);
+        digitRule.setNumberOfCharacters(5);
 
         CharacterData specialChars = new CharacterData() {
             public String getErrorCode() {
@@ -85,7 +85,7 @@ public class SecurityService {
         CharacterRule splCharRule = new CharacterRule(specialChars);
         splCharRule.setNumberOfCharacters(2);
 
-        return gen.generatePassword(10, splCharRule, lowerCaseRule,
+        return gen.generatePassword(25, splCharRule, lowerCaseRule,
                 upperCaseRule, digitRule);
     }
 }
