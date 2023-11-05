@@ -144,14 +144,12 @@ public class TelegramController extends TelegramLongPollingBot {
         telegramService.sendMessage(chatId, text);
     }
 
-    //todo
     private void helpCommand(Long chatId) {
         var text = """
                 /add TgUsername(no @) {sum} - adds new transactions Me->Someone(без @) with value {sum} ₽
-                /get TgUsername - checks size of debt
-                /history - all related transactions
-                /debts - all related debts
-                /new_password - creates a new password for web interface
+                /get TgUsername - checks size of debt between you and him
+                /history {page} - related transactions
+                /debts {page} - related debts
                 """;
         telegramService.sendMessage(chatId, text);
     }
