@@ -10,8 +10,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ru.m_polukhin.debtsapp.models.Debt;
 
-import java.util.List;
-
 @Repository
 public interface DebtRepository extends CrudRepository<Debt, Long> {
     @Modifying

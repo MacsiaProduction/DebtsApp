@@ -16,9 +16,6 @@ import ru.m_polukhin.debtsapp.repository.UserRepository;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class DebtsDAO {
