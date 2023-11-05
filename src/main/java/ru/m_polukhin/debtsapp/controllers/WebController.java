@@ -4,6 +4,8 @@ import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,36 +24,41 @@ import java.util.List;
 public class WebController {
     private final DebtsDAO dao;
 
-    //todo Pageable maybe PagedModel
-    @Operation(summary = "Returns list of all transactions related to {user}")
+    @Operation(summary = "Returns page of all transactions related to {user}")
     @GetMapping("transactions")
     @ApiResponses(value = {
             @ApiResponse(code = 201, message = "Transaction created successfully"),
             @ApiResponse(code = 400, message = "Bad request"),
             @ApiResponse(code = 401, message = "Only authorized users allowed")
     })
-    public List<TransactionInfo> findAllTransactionsRelated(Principal principal) {
+    public Page<TransactionInfo> findAllTransactionsRelated(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            return dao.findAllTransactionsRelated(Long.valueOf(principal.getName()));
+            Long userId = Long.valueOf(principal.getName());
+            return dao.findAllTransactionsRelated(userId, PageRequest.of(page, size));
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
     }
 
-    @Operation(summary = "Returns list of all transactions from sender to recipient")
+    @Operation(summary = "Returns page of all transactions from sender to recipient")
     @GetMapping("transactions/between")
     @ApiResponses(value = {
             @ApiResponse(code = 201, message = "Transaction created successfully"),
             @ApiResponse(code = 400, message = "Bad request"),
             @ApiResponse(code = 401, message = "Only authorized users allowed")
     })
-    public List<TransactionInfo> findAllTransactionsFromTo(
+    public Page<TransactionInfo> findAllTransactionsFromTo(
             Principal principal,
             @Parameter(description = "Sender") @RequestParam String sender,
-            @Parameter(description = "Recipient") @RequestParam String recipient) {
+            @Parameter(description = "Recipient") @RequestParam String recipient,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
         try {
-            return dao.findAllTransactionsFromTo(sender, recipient);
+            return dao.findAllTransactionsFromTo(sender, recipient, PageRequest.of(page, size));
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -64,10 +71,11 @@ public class WebController {
             @ApiResponse(code = 400, message = "Bad request"),
             @ApiResponse(code = 401, message = "Only authorized users allowed")
     })
-    public ResponseEntity<String> createTransaction(Principal principal, @RequestBody TransactionInfo dto) {
-        validateOne(principal, dto.sender());
+    public ResponseEntity<String> createTransaction(Principal principal,
+                                                    @RequestParam String toName,
+                                                    @RequestParam Long sum) {
         try {
-            dao.addTransaction(dto.sender(), dto.recipient(), dto.sum());
+            dao.addTransaction(Long.valueOf(principal.getName()), toName, sum);
             return new ResponseEntity<>("Transaction created successfully", HttpStatus.CREATED);
         } catch (UserNotFoundException | ParseException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -100,12 +108,12 @@ public class WebController {
             @ApiResponse(code = 400, message = "Bad request"),
             @ApiResponse(code = 401, message = "Only authorized users allowed")
     })
-    public List<DebtInfo> findAllDebtsRelated(
+    public Page<DebtInfo> findAllDebtsRelated(
             Principal principal,
-            @Parameter(description = "User name") @RequestParam String name) {
-        validateOne(principal, name);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            return dao.findAllDebtsRelated(name);
+            return dao.findAllDebtsRelated(Long.valueOf(principal.getName()), PageRequest.of(page, size));
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -123,17 +131,4 @@ public class WebController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
     }
-
-    private void validateOne(Principal principal, @RequestParam @Parameter(description = "Creditor's name") String fromName) {
-        try {
-            long name = Long.parseLong(principal.getName());
-            var user1 = dao.getIdByName(fromName);
-            if (name != user1) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-            }
-        } catch (UserNotFoundException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        }
-    }
-
 }

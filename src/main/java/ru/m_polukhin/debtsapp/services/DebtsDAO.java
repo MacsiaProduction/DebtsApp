@@ -1,10 +1,13 @@
 package ru.m_polukhin.debtsapp.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.m_polukhin.debtsapp.dto.DebtInfo;
 import ru.m_polukhin.debtsapp.dto.TransactionInfo;
+import ru.m_polukhin.debtsapp.exceptions.UserNotFoundUnchecked;
 import ru.m_polukhin.debtsapp.models.*;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
 import ru.m_polukhin.debtsapp.repository.SessionRepository;
@@ -26,8 +29,7 @@ public class DebtsDAO {
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
 
-    public void addTransaction(String sender, String recipient, Long sum) throws UserNotFoundException, ParseException {
-        Long senderId = getIdByName(sender);
+    public void addTransaction(Long senderId, String recipient, Long sum) throws UserNotFoundException, ParseException {
         Long recipientId = getIdByName(recipient);
         var transaction = new Transaction(sum, senderId, recipientId);
         transactionRepository.save(transaction);
@@ -41,15 +43,22 @@ public class DebtsDAO {
         }
     }
 
-    //todo page
-    public List<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient) throws UserNotFoundException {
-        var res = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender),getIdByName(recipient));
-        return coverTransactions(res);
+    public Page<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient, Pageable pageable) throws UserNotFoundException {
+        var transactions = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender), getIdByName(recipient), pageable);
+        try {
+            return coverTransactions(transactions);
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
     }
 
-    public List<TransactionInfo> findAllTransactionsRelated(Long userId) throws UserNotFoundException {
-        List<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId,userId);
-        return coverTransactions(transactions);
+    public Page<TransactionInfo> findAllTransactionsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
+        Page<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId, userId, pageable);
+        try {
+            return coverTransactions(transactions);
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
     }
 
     public DebtInfo getDebt(String sender, String receiver) throws UserNotFoundException {
@@ -60,8 +69,12 @@ public class DebtsDAO {
                             debt.getSum());
     }
 
-    public List<DebtInfo> findAllDebtsRelated(String username) throws UserNotFoundException {
-        return coverDebts(debtRepository.findAllDebtsRelated(getIdByName(username)));
+    public Page<DebtInfo> findAllDebtsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
+        try {
+            return coverDebts(debtRepository.findAllDebtsRelated(userId, pageable));
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
     }
 
     public UserData findUserByName(String username) throws UserNotFoundException {
@@ -101,19 +114,29 @@ public class DebtsDAO {
         return userInfo.get().getTelegramName();
     }
 
-    private List<TransactionInfo> coverTransactions(Iterable<Transaction> transactions) throws UserNotFoundException {
-        var list = new ArrayList<TransactionInfo>();
-        for (var t : transactions) {
-            list.add(new TransactionInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
-        }
-        return list;
+    private Page<TransactionInfo> coverTransactions(Page<Transaction> transactions) throws UserNotFoundUnchecked {
+        return transactions.map(transaction -> {
+            try {
+                return new TransactionInfo(
+                        getNameById(transaction.getSenderId()),
+                        getNameById(transaction.getRecipientId()),
+                        transaction.getSum()
+                );
+            } catch (UserNotFoundException e) {
+                throw new UserNotFoundUnchecked(e.getMessage());
+            }
+        });
     }
 
-    private List<DebtInfo> coverDebts(Iterable<Debt> debts) throws UserNotFoundException {
-        var list = new ArrayList<DebtInfo>();
-        for (var t : debts) {
-            list.add(new DebtInfo(getNameById(t.getSenderId()), getNameById(t.getRecipientId()), t.getSum()));
-        }
-        return list;
+    private Page<DebtInfo> coverDebts(Page<Debt> debts) throws UserNotFoundUnchecked {
+        return debts.map(debt -> {
+            try {
+                return new DebtInfo(getNameById(debt.getSenderId()),
+                                    getNameById(debt.getRecipientId()),
+                                    debt.getSum());
+            } catch (UserNotFoundException e) {
+                throw new UserNotFoundUnchecked(e.getMessage());
+            }
+        });
     }
 }

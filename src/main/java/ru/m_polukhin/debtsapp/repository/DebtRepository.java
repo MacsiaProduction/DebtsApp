@@ -1,5 +1,7 @@
 package ru.m_polukhin.debtsapp.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -37,5 +39,5 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
     @Query("SELECT d " +
             "FROM Debt d " +
             "WHERE (d.id.senderId = :id OR d.id.recipientId = :id)")
-    List<Debt> findAllDebtsRelated(@Param("id") Long id);
+    Page<Debt> findAllDebtsRelated(@Param("id") Long id, Pageable pageable);
 }

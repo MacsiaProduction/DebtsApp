@@ -1,6 +1,9 @@
 package ru.m_polukhin.debtsapp.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -49,6 +52,7 @@ public class TelegramController extends TelegramLongPollingBot {
         var username = user.getUserName();
         var messageSplit = message.split(" ");
         var command = messageSplit[0];
+
         switch (command) {
             case START -> {
                 var len = messageSplit.length;
@@ -58,24 +62,28 @@ public class TelegramController extends TelegramLongPollingBot {
                     activateSession(chatId, user, messageSplit[1]);
                 }
             }
-            case ADD -> addCommand(chatId, username, message);
+            case ADD -> addCommand(chatId, user, messageSplit);
             case HELP -> helpCommand(chatId);
-            case GET -> getCommand(chatId, username, message);
-            case HISTORY -> historyCommand(chatId, user);
-            case DEBTS -> debtsCommand(chatId, username);
+            case GET -> getCommand(chatId, username, messageSplit);
+            case HISTORY -> historyCommand(chatId, user, messageSplit);
+            case DEBTS -> debtsCommand(chatId, user.getId(), messageSplit);
             default -> unknownCommand(chatId);
         }
     }
 
-    private void historyCommand(Long chatId, User user) {
+    private void historyCommand(Long chatId, User user, String[] messageSplit) {
         String text;
         try {
-            var res = dao.findAllTransactionsRelated(user.getId());
+            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
+            var page = PageRequest.of(Integer.parseInt(messageSplit[1]), 10);
+            var res = dao.findAllTransactionsRelated(user.getId(), page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "You aren't registered, try write /start";
+        } catch (ParseException | NumberFormatException e) {
+            text = e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
     }
@@ -90,15 +98,14 @@ public class TelegramController extends TelegramLongPollingBot {
         helpCommand(chatId);
     }
 
-    private void addCommand(Long chatId, String username, String message) {
+    private void addCommand(Long chatId, User user, String[] messageSplit) {
         String text;
         try {
-            var res = message.split(" ");
-            if (res.length != 3) throw new ParseException("Wrong args count");
-            String recipient = res[1];
-            Long sum = Long.parseLong(res[2]);
-            dao.addTransaction(username, recipient, sum);
-            text = "Transaction " + username + " -> " + recipient + " {" + sum + "} added";
+            if (messageSplit.length != 3) throw new ParseException("Wrong argument count");
+            String recipient = messageSplit[1];
+            Long sum = Long.parseLong(messageSplit[2]);
+            dao.addTransaction(user.getId(), recipient, sum);
+            text = "Transaction " + user.getUserName() + " -> " + recipient + " {" + sum + "} added";
         } catch (ParseException e) {
             text = "Wrong format: "+e.getMessage();
         } catch (UserNotFoundException e) {
@@ -107,12 +114,11 @@ public class TelegramController extends TelegramLongPollingBot {
         telegramService.sendMessage(chatId, text);
     }
 
-    private void getCommand(Long chatId, String username, String message) {
+    private void getCommand(Long chatId, String username, String[] messageSplit) {
         String text;
         try {
-            var res = message.split(" ");
-            if (res.length != 2) throw new ParseException("Wrong args count");
-            String recipient = res[1];
+            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
+            String recipient = messageSplit[1];
             var debt = dao.getDebt(username, recipient);
             text = debt.toString();
         } catch (ParseException e) {
@@ -123,19 +129,24 @@ public class TelegramController extends TelegramLongPollingBot {
         telegramService.sendMessage(chatId, text);
     }
 
-    private void debtsCommand(Long chatId, String username) {
+    private void debtsCommand(Long chatId, Long userId, String[] messageSplit) {
         String text;
         try {
-            var res = dao.findAllDebtsRelated(username);
+            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
+            var page = PageRequest.of(Integer.parseInt(messageSplit[1]), 10);
+            var res = dao.findAllDebtsRelated(userId, page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "User with name " + e.getMessage() + " isn't registered";
+        } catch (ParseException e) {
+            text = "Wrong format: "+e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
     }
 
+    //todo
     private void helpCommand(Long chatId) {
         var text = """
                 /add TgUsername(no @) {sum} - adds new transactions Me->Someone(без @) with value {sum} ₽
