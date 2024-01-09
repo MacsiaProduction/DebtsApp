@@ -21,6 +21,7 @@ import java.security.Principal;
 @RestController
 @RequiredArgsConstructor
 public class WebController {
+    //todo now with comment and chatId
     private final DebtsDAO dao;
 
     @Operation(summary = "Returns page of all transactions related to {user}")
@@ -36,7 +37,8 @@ public class WebController {
             @RequestParam(defaultValue = "10") int size) {
         try {
             Long userId = Long.valueOf(principal.getName());
-            return dao.findAllTransactionsRelated(userId, PageRequest.of(page, size));
+            //todo chatId
+            return dao.findAllTransactionsRelated(0L, userId, PageRequest.of(page, size));
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -57,7 +59,8 @@ public class WebController {
             @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
         try {
-            return dao.findAllTransactionsFromTo(sender, recipient, PageRequest.of(page, size));
+            //todo chatId
+            return dao.findAllTransactionsFromTo(0L, sender, recipient, PageRequest.of(page, size));
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -74,7 +77,8 @@ public class WebController {
                                                     @RequestParam String toName,
                                                     @RequestParam Long sum) {
         try {
-            dao.addTransaction(Long.valueOf(principal.getName()), toName, sum);
+            //todo chatId, comment
+            var transaction = dao.addTransaction(0L, Long.valueOf(principal.getName()), toName, sum, "");
             return new ResponseEntity<>("Transaction created successfully", HttpStatus.CREATED);
         } catch (UserNotFoundException | ParseException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -94,7 +98,8 @@ public class WebController {
             @Parameter(description = "Debtor's name") @RequestParam String toName) {
         validateTwo(principal, fromName, toName);
         try {
-            return dao.getDebt(fromName, toName);
+            //todo chatId
+            return dao.getDebt(0L, fromName, toName);
         } catch (UserNotFoundException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
