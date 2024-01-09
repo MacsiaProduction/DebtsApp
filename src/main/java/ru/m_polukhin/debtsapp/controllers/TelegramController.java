@@ -72,16 +72,20 @@ public class TelegramController extends TelegramLongPollingBot {
     private void historyCommand(Long chatId, User user, String[] messageSplit) {
         String text;
         try {
-            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
-            var page = PageRequest.of(Integer.parseInt(messageSplit[1]), 10);
+            PageRequest page;
+            if (messageSplit.length != 2) {
+                page = PageRequest.of(0, 20);
+            } else {
+                page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
+            }
             var res = dao.findAllTransactionsRelated(user.getId(), page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "You aren't registered, try write /start";
-        } catch (ParseException | NumberFormatException e) {
-            text = e.getMessage();
+        } catch (IllegalArgumentException e) {
+            text = "Wrong format: " + e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
     }
@@ -100,14 +104,20 @@ public class TelegramController extends TelegramLongPollingBot {
         String text;
         try {
             if (messageSplit.length != 3) throw new ParseException("Wrong argument count");
+
             String recipient = messageSplit[1];
+            // Remove '@' from the recipient username if present
+            if (recipient.startsWith("@")) {
+                recipient = recipient.substring(1);
+            }
+
             Long sum = Long.parseLong(messageSplit[2]);
             dao.addTransaction(user.getId(), recipient, sum);
             text = "Transaction " + user.getUserName() + " -> " + recipient + " {" + sum + "} added";
         } catch (ParseException e) {
             text = "Wrong format: "+e.getMessage();
         } catch (UserNotFoundException e) {
-            text = e.getMessage();
+            text = "User "+ e.getMessage()+ " not found";
         }
         telegramService.sendMessage(chatId, text);
     }
@@ -116,11 +126,17 @@ public class TelegramController extends TelegramLongPollingBot {
         String text;
         try {
             if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
+
             String recipient = messageSplit[1];
+            // Remove '@' from the recipient username if present
+            if (recipient.startsWith("@")) {
+                recipient = recipient.substring(1);
+            }
+
             var debt = dao.getDebt(username, recipient);
             text = debt.toString();
         } catch (ParseException e) {
-            text = "Wrong format: "+e.getMessage();
+            text = "Wrong format: " + e.getMessage();
         } catch (UserNotFoundException e) {
             text = "User with name " + e.getMessage() + " isn't registered";
         }
@@ -130,15 +146,19 @@ public class TelegramController extends TelegramLongPollingBot {
     private void debtsCommand(Long chatId, Long userId, String[] messageSplit) {
         String text;
         try {
-            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
-            var page = PageRequest.of(Integer.parseInt(messageSplit[1]), 10);
+            PageRequest page;
+            if (messageSplit.length != 2) {
+                page = PageRequest.of(0, 20);
+            } else {
+                page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
+            }
             var res = dao.findAllDebtsRelated(userId, page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "User with name " + e.getMessage() + " isn't registered";
-        } catch (ParseException e) {
+        } catch (IllegalArgumentException e) {
             text = "Wrong format: "+e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
@@ -146,10 +166,10 @@ public class TelegramController extends TelegramLongPollingBot {
 
     private void helpCommand(Long chatId) {
         var text = """
-                /add TgUsername(no @) {sum} - adds new transactions Me->Someone(без @) with value {sum} ₽
+                /add TgUsername {sum} - adds new transactions Me->Someone with value {sum}₽
                 /get TgUsername - checks size of debt between you and him
-                /history {page} - related transactions
-                /debts {page} - related debts
+                /history {page} (0 by default) - related transactions
+                /debts {page} (0 by default) - related debts
                 """;
         telegramService.sendMessage(chatId, text);
     }
