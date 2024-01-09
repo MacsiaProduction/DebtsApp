@@ -19,7 +19,6 @@ import java.util.List;
 
 @Controller
 public class TelegramController extends TelegramLongPollingBot {
-    //todo adding to group
     private final DebtsDAO dao;
     private final TelegramService telegramService;
     private final SecurityService securityService;
@@ -209,5 +208,6 @@ public class TelegramController extends TelegramLongPollingBot {
 
         return result.toString();
     }
+
 
 }

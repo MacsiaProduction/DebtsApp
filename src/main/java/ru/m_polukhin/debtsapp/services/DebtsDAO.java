@@ -16,6 +16,8 @@ import ru.m_polukhin.debtsapp.repository.UserRepository;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class DebtsDAO {
@@ -68,6 +70,14 @@ public class DebtsDAO {
                             chatId);
     }
 
+    public Page<DebtInfo> getAllDebtsInChat(Long chatId, Pageable page) {
+        try {
+            return coverDebts(debtRepository.findByChatId(chatId, page));
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundUnchecked(e.getMessage());
+        }
+    }
+
     public Page<DebtInfo> findAllDebtsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
         try {
             return coverDebts(debtRepository.findAllDebtsRelated(userId, pageable));
@@ -113,6 +123,10 @@ public class DebtsDAO {
 
     public Long getIdByName(String username) throws UserNotFoundException {
         return findUserByName(username).getId();
+    }
+
+    public List<Long> getAllChats() {
+        return debtRepository.findAllUniqueChatIds();
     }
 
     private String getNameById(Long id) throws UserNotFoundException {

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ru.m_polukhin.debtsapp.models.Debt;
 
+import java.util.List;
+
 @Repository
 public interface DebtRepository extends CrudRepository<Debt, Long> {
     @Modifying
@@ -49,4 +51,10 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
             "FROM Debt d " +
             "WHERE ((d.id.senderId = :id OR d.id.recipientId = :id) AND (d.id.chatId = :chatId))")
     Page<Debt> findAllDebtsRelated(@Param("chatId") Long chatId, @Param("id") Long id, Pageable pageable);
+
+    @Query("SELECT DISTINCT d.id.chatId FROM Debt d WHERE d.sum <> 0")
+    List<Long> findAllUniqueChatIds();
+
+    @Query("SELECT d FROM Debt d WHERE d.id.chatId = :chatId")
+    Page<Debt> findByChatId(@Param("chatId") Long chatId, Pageable pageable);
 }
