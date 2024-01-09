@@ -78,7 +78,7 @@ public class TelegramController extends TelegramLongPollingBot {
             } else {
                 page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
             }
-            var res = dao.findAllTransactionsRelated(user.getId(), page);
+            var res = dao.findAllTransactionsRelated(chatId, user.getId(), page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
@@ -103,7 +103,7 @@ public class TelegramController extends TelegramLongPollingBot {
     private void addCommand(Long chatId, User user, String[] messageSplit) {
         String text;
         try {
-            if (messageSplit.length != 3) throw new ParseException("Wrong argument count");
+            if (messageSplit.length < 3) throw new ParseException("Wrong argument count");
 
             String recipient = messageSplit[1];
             // Remove '@' from the recipient username if present
@@ -111,9 +111,14 @@ public class TelegramController extends TelegramLongPollingBot {
                 recipient = recipient.substring(1);
             }
 
+            String comment = "";
+            if (messageSplit.length != 3) {
+                comment = concatArrayExceptFirstThree(messageSplit);
+            }
+
             Long sum = Long.parseLong(messageSplit[2]);
-            dao.addTransaction(user.getId(), recipient, sum);
-            text = "Transaction " + user.getUserName() + " -> " + recipient + " {" + sum + "} added";
+            var transaction = dao.addTransaction(chatId, user.getId(), recipient, sum, comment);
+            text = transaction.toString();
         } catch (ParseException e) {
             text = "Wrong format: "+e.getMessage();
         } catch (UserNotFoundException e) {
@@ -133,7 +138,7 @@ public class TelegramController extends TelegramLongPollingBot {
                 recipient = recipient.substring(1);
             }
 
-            var debt = dao.getDebt(username, recipient);
+            var debt = dao.getDebt(chatId, username, recipient);
             text = debt.toString();
         } catch (ParseException e) {
             text = "Wrong format: " + e.getMessage();
@@ -152,7 +157,7 @@ public class TelegramController extends TelegramLongPollingBot {
             } else {
                 page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
             }
-            var res = dao.findAllDebtsRelated(userId, page);
+            var res = dao.findAllDebtsRelated(chatId, userId, page);
             List<String> res2 = new ArrayList<>();
             res.forEach(t -> res2.add(t.toString()));
             text = String.join("\n", res2);
@@ -166,7 +171,7 @@ public class TelegramController extends TelegramLongPollingBot {
 
     private void helpCommand(Long chatId) {
         var text = """
-                /add TgUsername {sum} - adds new transactions Me->Someone with value {sum}₽
+                /add TgUsername {sum} {comment} - adds new transaction Me->Someone with value {sum}₽
                 /get TgUsername - checks size of debt between you and him
                 /history {page} (0 by default) - related transactions
                 /debts {page} (0 by default) - related debts
@@ -191,6 +196,18 @@ public class TelegramController extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return botName;
+    }
+
+    private String concatArrayExceptFirstThree(String[] words) {
+        StringBuilder result = new StringBuilder();
+
+        if (words.length > 3) {
+            for (int i = 3; i < words.length; i++) {
+                result.append(words[i]).append(" ");
+            }
+        }
+
+        return result.toString();
     }
 
 }

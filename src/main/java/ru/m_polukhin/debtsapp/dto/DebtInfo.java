@@ -4,9 +4,9 @@ public record DebtInfo(String from, String to, Long sum, Long chatId) {
     @Override
     public String toString() {
         if (sum>0) {
-            return from + " <$-" + to + "{"+sum+"}";
+            return from + " <₽-" + to + "{"+sum+"}";
         } else {
-            return to + " <$-" + from + "{"+(-sum)+"}";
+            return to + " <₽-" + from + "{"+(-sum)+"}";
         }
     }
 }

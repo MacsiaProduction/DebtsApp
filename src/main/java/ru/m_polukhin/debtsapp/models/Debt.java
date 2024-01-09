@@ -10,7 +10,6 @@ import java.io.Serializable;
 
 @Entity
 @NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "debts")
 public final class Debt {
     @EmbeddedId
@@ -20,16 +19,16 @@ public final class Debt {
     @Column(name = "sum")
     private Long sum;
 
-    @Getter
-    @Column(name = "chat_id")
-    private Long chatId;
-
     public Long getRecipientId() {
         return id.getRecipientId();
     }
 
     public Long getSenderId() {
         return id.getSenderId();
+    }
+
+    public Long getChatId() {
+        return id.getChatId();
     }
 
     @Embeddable
@@ -42,5 +41,8 @@ public final class Debt {
 
         @Column(name = "recipient_id")
         private Long recipientId;
+
+        @Column(name = "chat_id")
+        private Long chatId;
     }
 }

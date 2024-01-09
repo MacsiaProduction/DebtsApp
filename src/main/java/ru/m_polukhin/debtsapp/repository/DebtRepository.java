@@ -15,27 +15,38 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
     @Modifying
     @Transactional
     @Query(value =
-            "INSERT INTO debts (sender_id, recipient_id, sum) " +
-                    "VALUES (:senderId, :recipientId, :sum) " +
-                    "ON CONFLICT (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id)) " +
-                    "DO UPDATE SET sum = CASE " +
-                    "  WHEN (debts.sender_id = :senderId AND debts.recipient_id = :recipientId) THEN debts.sum + :sum " +
-                    "  WHEN (debts.sender_id = :recipientId AND debts.recipient_id = :senderId) THEN debts.sum - :sum " +
-                    "ELSE debts.sum " +
-                    "END",
+            "INSERT INTO debts (sender_id, recipient_id, sum, chat_id) " +
+                    "VALUES (LEAST(:senderId, :recipientId), GREATEST(:senderId, :recipientId), " +
+                    "        CASE WHEN :senderId < :recipientId THEN :sum ELSE -1 * :sum END, :chatId) " +
+                    "ON CONFLICT (sender_id, recipient_id, chat_id) " +
+                    "DO UPDATE SET sum = debts.sum + " +
+                    "    CASE WHEN :senderId < :recipientId THEN :sum ELSE -1 * :sum END",
             nativeQuery = true)
-    void increaseDebt(@Param("senderId") Long senderId, @Param("recipientId") Long recipientId, @Param("sum") Long sum);
+    void increaseDebt(@Param("senderId") Long senderId,
+                      @Param("recipientId") Long recipientId,
+                      @Param("sum") Long sum,
+                      @Param("chatId") Long chatId);
 
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +
-            "WHERE (d.id.senderId = :senderId AND d.id.recipientId = :recipientId) OR " +
-            "(d.id.senderId = :recipientId AND d.id.recipientId = :senderId)")
-    Debt getDebtBetweenUsers(@Param("senderId") Long senderId, @Param("recipientId") Long recipientId);
+            "WHERE ((d.id.senderId = :senderId AND d.id.recipientId = :recipientId) OR " +
+            "(d.id.senderId = :recipientId AND d.id.recipientId = :senderId)) " +
+            "AND d.id.chatId = :chatId")
+    Debt getDebtBetweenUsers(@Param("senderId") Long senderId,
+                             @Param("recipientId") Long recipientId,
+                             @Param("chatId") Long chatId);
+
 
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +
             "WHERE (d.id.senderId = :id OR d.id.recipientId = :id)")
     Page<Debt> findAllDebtsRelated(@Param("id") Long id, Pageable pageable);
+
+    @Transactional(readOnly = true)
+    @Query("SELECT d " +
+            "FROM Debt d " +
+            "WHERE ((d.id.senderId = :id OR d.id.recipientId = :id) AND (d.id.chatId = :chatId))")
+    Page<Debt> findAllDebtsRelated(@Param("chatId") Long chatId, @Param("id") Long id, Pageable pageable);
 }

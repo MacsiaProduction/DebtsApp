@@ -26,11 +26,12 @@ public class DebtsDAO {
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
 
-    public void addTransaction(Long senderId, String recipient, Long sum) throws UserNotFoundException, ParseException {
+    public TransactionInfo addTransaction(Long chatId, Long senderId, String recipient, Long sum, String comment) throws UserNotFoundException, ParseException {
         Long recipientId = getIdByName(recipient);
-        var transaction = new Transaction(sum, senderId, recipientId);
+        var transaction = new Transaction(sum, senderId, recipientId, chatId, comment);
         transactionRepository.save(transaction);
-        debtRepository.increaseDebt(senderId, recipientId, sum);
+        debtRepository.increaseDebt(senderId, recipientId, sum, chatId);
+        return coverTransaction(transaction);
     }
 
     //todo update nickname
@@ -40,8 +41,8 @@ public class DebtsDAO {
         }
     }
 
-    public Page<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient, Pageable pageable) throws UserNotFoundException {
-        var transactions = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender), getIdByName(recipient), pageable);
+    public Page<TransactionInfo> findAllTransactionsFromTo(Long chatId, String sender, String recipient, Pageable pageable) throws UserNotFoundException {
+        var transactions = transactionRepository.findAllByChatIdAndSenderIdAndRecipientId(chatId, getIdByName(sender), getIdByName(recipient), pageable);
         try {
             return coverTransactions(transactions);
         } catch (UserNotFoundUnchecked e) {
@@ -49,8 +50,8 @@ public class DebtsDAO {
         }
     }
 
-    public Page<TransactionInfo> findAllTransactionsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
-        Page<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId, userId, pageable);
+    public Page<TransactionInfo> findAllTransactionsRelated(Long chatId, Long userId, Pageable pageable) throws UserNotFoundException {
+        Page<Transaction> transactions = transactionRepository.findAllByChatIdAndSenderIdOrChatIdAndRecipientId(chatId, userId, chatId, userId, pageable);
         try {
             return coverTransactions(transactions);
         } catch (UserNotFoundUnchecked e) {
@@ -58,17 +59,26 @@ public class DebtsDAO {
         }
     }
 
-    public DebtInfo getDebt(String sender, String receiver) throws UserNotFoundException {
-        Debt debt = debtRepository.getDebtBetweenUsers(getIdByName(sender), getIdByName(receiver));
-        if (debt == null) return new DebtInfo(sender, receiver, 0L);
+    public DebtInfo getDebt(Long chatId, String sender, String receiver) throws UserNotFoundException {
+        Debt debt = debtRepository.getDebtBetweenUsers(getIdByName(sender), getIdByName(receiver), chatId);
+        if (debt == null) return new DebtInfo(sender, receiver, 0L, chatId);
         return new DebtInfo(getNameById(debt.getSenderId()),
                             getNameById(debt.getRecipientId()),
-                            debt.getSum());
+                            debt.getSum(),
+                            chatId);
     }
 
     public Page<DebtInfo> findAllDebtsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
         try {
             return coverDebts(debtRepository.findAllDebtsRelated(userId, pageable));
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
+    }
+
+    public Page<DebtInfo> findAllDebtsRelated(Long chatId, Long userId, Pageable pageable) throws UserNotFoundException {
+        try {
+            return coverDebts(debtRepository.findAllDebtsRelated(chatId, userId, pageable));
         } catch (UserNotFoundUnchecked e) {
             throw new UserNotFoundException(e.getMessage());
         }
@@ -114,11 +124,7 @@ public class DebtsDAO {
     private Page<TransactionInfo> coverTransactions(Page<Transaction> transactions) throws UserNotFoundUnchecked {
         return transactions.map(transaction -> {
             try {
-                return new TransactionInfo(
-                        getNameById(transaction.getSenderId()),
-                        getNameById(transaction.getRecipientId()),
-                        transaction.getSum()
-                );
+                return coverTransaction(transaction);
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
@@ -130,10 +136,21 @@ public class DebtsDAO {
             try {
                 return new DebtInfo(getNameById(debt.getSenderId()),
                                     getNameById(debt.getRecipientId()),
-                                    debt.getSum());
+                                    debt.getSum(),
+                                    debt.getChatId());
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
         });
+    }
+
+    private TransactionInfo coverTransaction(Transaction transaction) throws UserNotFoundException {
+        return new TransactionInfo(
+                getNameById(transaction.getSenderId()),
+                getNameById(transaction.getRecipientId()),
+                transaction.getSum(),
+                transaction.getChatId(),
+                transaction.getComment()
+        );
     }
 }
