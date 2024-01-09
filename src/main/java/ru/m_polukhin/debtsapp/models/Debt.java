@@ -20,6 +20,10 @@ public final class Debt {
     @Column(name = "sum")
     private Long sum;
 
+    @Getter
+    @Column(name = "chat_id")
+    private Long chatId;
+
     public Long getRecipientId() {
         return id.getRecipientId();
     }

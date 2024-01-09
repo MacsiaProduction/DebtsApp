@@ -28,15 +28,23 @@ public final class Transaction {
     @Column(name = "recipient_id")
     private Long recipientId;
 
+    @Column(name = "chat_id")
+    private Long chatId;
+
+    @Column(name = "comment")
+    private String comment;
+
     @CreationTimestamp
     @Column(name = "time")
     private Timestamp timestamp;
 
-    public Transaction(Long sum, Long senderId, Long recipientId) throws ParseException, UserNotFoundException {
+    public Transaction(Long sum, Long senderId, Long recipientId, Long chatId, String comment) throws ParseException, UserNotFoundException {
         this.sum = sum;
         this.senderId = senderId;
         this.recipientId = recipientId;
-        if (recipientId.equals(senderId)) throw new UserNotFoundException(senderId);
+        this.chatId = chatId;
+        this.comment = comment;
+        if (recipientId.equals(senderId)) throw new UserNotFoundException("Me");
         if (sum < 0) throw new ParseException("Value of transaction should be positive");
     }
 }
