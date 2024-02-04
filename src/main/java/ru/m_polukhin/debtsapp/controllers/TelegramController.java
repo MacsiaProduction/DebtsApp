@@ -83,7 +83,7 @@ public class TelegramController extends TelegramLongPollingBot {
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "You aren't registered, try write /start";
-        } catch (IllegalArgumentException e) {
+        } catch (NumberFormatException e) {
             text = "Wrong format: " + e.getMessage();
         }
         telegramService.sendMessage(chatId, text);
@@ -118,7 +118,7 @@ public class TelegramController extends TelegramLongPollingBot {
             Long sum = Long.parseLong(messageSplit[2]);
             var transaction = dao.addTransaction(chatId, user.getId(), recipient, sum, comment);
             text = transaction.toString();
-        } catch (ParseException e) {
+        } catch (NumberFormatException | ParseException e) {
             text = "Wrong format: "+e.getMessage();
         } catch (UserNotFoundException e) {
             text = "User "+ e.getMessage()+ " not found";
@@ -162,7 +162,7 @@ public class TelegramController extends TelegramLongPollingBot {
             text = String.join("\n", res2);
         } catch (UserNotFoundException e) {
             text = "User with name " + e.getMessage() + " isn't registered";
-        } catch (IllegalArgumentException e) {
+        } catch (NumberFormatException e) {
             text = "Wrong format: "+e.getMessage();
         }
         telegramService.sendMessage(chatId, text);

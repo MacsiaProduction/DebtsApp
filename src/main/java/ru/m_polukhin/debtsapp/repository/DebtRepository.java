@@ -14,6 +14,7 @@ import java.util.List;
 
 @Repository
 public interface DebtRepository extends CrudRepository<Debt, Long> {
+    //TODO delete rows with zero
     @Modifying
     @Transactional
     @Query(value =
@@ -22,7 +23,7 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
                     "        CASE WHEN :senderId < :recipientId THEN :sum ELSE -1 * :sum END, :chatId) " +
                     "ON CONFLICT (sender_id, recipient_id, chat_id) " +
                     "DO UPDATE SET sum = debts.sum + " +
-                    "    CASE WHEN :senderId < :recipientId THEN :sum ELSE -1 * :sum END",
+                    "    CASE WHEN :senderId < :recipientId THEN :sum ELSE -1 * :sum END ",
             nativeQuery = true)
     void increaseDebt(@Param("senderId") Long senderId,
                       @Param("recipientId") Long recipientId,
@@ -43,18 +44,20 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +
-            "WHERE (d.id.senderId = :id OR d.id.recipientId = :id)")
+            "WHERE (d.id.senderId = :id OR d.id.recipientId = :id)"+
+            "ORDER BY d.sum DESC")
     Page<Debt> findAllDebtsRelated(@Param("id") Long id, Pageable pageable);
 
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +
-            "WHERE ((d.id.senderId = :id OR d.id.recipientId = :id) AND (d.id.chatId = :chatId))")
+            "WHERE ((d.id.senderId = :id OR d.id.recipientId = :id) AND (d.id.chatId = :chatId))"+
+            "ORDER BY d.sum DESC")
     Page<Debt> findAllDebtsRelated(@Param("chatId") Long chatId, @Param("id") Long id, Pageable pageable);
 
     @Query("SELECT DISTINCT d.id.chatId FROM Debt d WHERE d.sum <> 0")
     List<Long> findAllUniqueChatIds();
 
-    @Query("SELECT d FROM Debt d WHERE d.id.chatId = :chatId")
+    @Query("SELECT d FROM Debt d WHERE d.id.chatId = :chatId ORDER BY d.sum DESC")
     Page<Debt> findByChatId(@Param("chatId") Long chatId, Pageable pageable);
 }

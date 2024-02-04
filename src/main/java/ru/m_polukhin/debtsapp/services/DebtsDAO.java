@@ -2,6 +2,7 @@ package ru.m_polukhin.debtsapp.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -146,7 +148,7 @@ public class DebtsDAO {
     }
 
     private Page<DebtInfo> coverDebts(Page<Debt> debts) throws UserNotFoundUnchecked {
-        return debts.map(debt -> {
+        return new PageImpl<>(debts.map(debt -> {
             try {
                 return new DebtInfo(getNameById(debt.getSenderId()),
                                     getNameById(debt.getRecipientId()),
@@ -155,7 +157,7 @@ public class DebtsDAO {
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
-        });
+        }).stream().filter(debtInfo -> debtInfo.sum()!=0).collect(Collectors.toList()));
     }
 
     private TransactionInfo coverTransaction(Transaction transaction) throws UserNotFoundException {
