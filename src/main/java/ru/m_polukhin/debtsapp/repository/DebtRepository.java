@@ -30,6 +30,11 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
                       @Param("sum") Long sum,
                       @Param("chatId") Long chatId);
 
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM debts WHERE sum = 0", nativeQuery = true)
+    void deleteZeroSumDebts();
+
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +

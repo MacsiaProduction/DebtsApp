@@ -106,7 +106,7 @@ public class DebtsDAO {
         sessionRepository.save(activeSessionToken);
     }
 
-    //todo give a client some extra number to not search in db
+    //todo give a client some extra number to optimize search in db
     public ActiveSessionToken getActiveSession(String sessionToken) throws UserNotFoundException {
         var tokens = sessionRepository.findAll();
         for(var token: tokens) {
@@ -129,6 +129,10 @@ public class DebtsDAO {
 
     public List<Long> getAllChats() {
         return debtRepository.findAllUniqueChatIds();
+    }
+
+    public void deleteZeroSumDebts() {
+        debtRepository.deleteZeroSumDebts();
     }
 
     private String getNameById(Long id) throws UserNotFoundException {

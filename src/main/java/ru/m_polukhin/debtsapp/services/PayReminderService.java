@@ -22,7 +22,6 @@ public class PayReminderService {
         for (var chatId : chats) {
             var debts = dao.getAllDebtsInChat(chatId, PageRequest.of(0, 20));
             List<String> res2 = debts.stream()
-                    .filter(debt -> debt.sum() != 0)  // Filter out zero debts
                     .map(DebtInfo::toString)
                     .collect(Collectors.toList());
             var text = String.join("\n", res2);
