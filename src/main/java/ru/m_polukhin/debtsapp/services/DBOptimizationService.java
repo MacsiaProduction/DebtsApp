@@ -15,4 +15,8 @@ public class DBOptimizationService {
     public void deleteZeroSumDebts() {
         dao.deleteZeroSumDebts();
     }
+
+    public void deleteDeletedChats(Long chatId) {
+        dao.deleteChatHistory(chatId);
+    }
 }

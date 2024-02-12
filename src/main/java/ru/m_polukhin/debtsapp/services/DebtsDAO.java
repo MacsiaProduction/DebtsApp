@@ -135,6 +135,11 @@ public class DebtsDAO {
         debtRepository.deleteZeroSumDebts();
     }
 
+    public void deleteChatHistory(Long chatId) {
+        debtRepository.deleteAllByChatId(chatId);
+        transactionRepository.deleteAllByChatId(chatId);
+    }
+
     private String getNameById(Long id) throws UserNotFoundException {
         var userInfo = userRepository.findById(id);
         if (userInfo.isEmpty()) throw new UserNotFoundException(id);

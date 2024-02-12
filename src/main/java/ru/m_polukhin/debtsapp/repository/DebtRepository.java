@@ -65,4 +65,7 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
 
     @Query("SELECT d FROM Debt d WHERE d.id.chatId = :chatId ORDER BY d.sum DESC")
     Page<Debt> findByChatId(@Param("chatId") Long chatId, Pageable pageable);
+
+    @Query("delete FROM Debt d WHERE d.id.chatId = :chatId")
+    void deleteAllByChatId(Long chatId);
 }

@@ -1,5 +1,6 @@
 package ru.m_polukhin.debtsapp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
@@ -10,9 +11,10 @@ import ru.m_polukhin.debtsapp.configs.BotConfig;
 
 @Service
 public class TelegramService extends DefaultAbsSender {
-    @Autowired
-    protected TelegramService(BotConfig config) {
+    private final DBOptimizationService dbOptimizationService;
+    public TelegramService(BotConfig config, @Autowired DBOptimizationService dbOptimizationService) {
         super(new DefaultBotOptions(), config.getToken());
+        this.dbOptimizationService = dbOptimizationService;
     }
 
     public void sendMessage(Long chatId, String text) {
@@ -51,7 +53,9 @@ public class TelegramService extends DefaultAbsSender {
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            if (e.getMessage().contains("[403]") || e.getMessage().contains("[404]")) {
+                dbOptimizationService.deleteDeletedChats(chatId);
+            }
         }
     }
 }
