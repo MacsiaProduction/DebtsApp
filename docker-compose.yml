@@ -11,6 +11,8 @@ services:
       - POSTGRES_DB=debtsbot
     ports:
       - '5432:5432'
+    volumes:
+      - debts_data:/var/lib/postgresql/data
 
   recipe:
     container_name: debts_bot
@@ -26,3 +28,7 @@ services:
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     depends_on:
       - debts_bot_db
+
+volumes:
+  debts_data:
+    external: false
