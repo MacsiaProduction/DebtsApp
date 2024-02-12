@@ -185,7 +185,7 @@ public class TelegramController extends TelegramLongPollingBot {
     }
 
     private void unknownCommand(Long chatId, Integer threadId) {
-        var text = "Not recognised";
+        var text = "Not recognized";
         telegramService.sendMessage(chatId, threadId, text);
     }
 
