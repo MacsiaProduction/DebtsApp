@@ -16,12 +16,37 @@ public class TelegramService extends DefaultAbsSender {
     }
 
     public void sendMessage(Long chatId, String text) {
-        var chatIdStr = String.valueOf(chatId);
+        sendMessage(chatId, null, text);
+    }
+
+    public void sendMessage(Long chatId, Integer threadId, String text) {
         SendMessage sendMessage;
         if (text.isEmpty()) {
-            sendMessage = new SendMessage(chatIdStr, "Nothing to show");
+            sendMessage = new SendMessage(
+                    chatId.toString(),
+                    threadId,
+                    "Nothing to show",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
         } else {
-            sendMessage = new SendMessage(chatIdStr, text);
+            sendMessage = new SendMessage(
+                    chatId.toString(),
+                    threadId,
+                    text,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
         }
         try {
             execute(sendMessage);

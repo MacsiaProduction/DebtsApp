@@ -14,7 +14,7 @@ import java.util.List;
 
 @Repository
 public interface DebtRepository extends CrudRepository<Debt, Long> {
-    //TODO delete rows with zero
+    //TODO Neo4j
     @Modifying
     @Transactional
     @Query(value =

@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  debts_bot_db:
+    image: postgres
+    container_name: debts_bot_db
+    restart: always
+    environment:
+      - POSTGRES_USER=debtsbot
+      - POSTGRES_PASSWORD=debtsbot
+      - POSTGRES_DB=debtsbot
+    ports:
+      - '5432:5432'
+
+  recipe:
+    container_name: debts_bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8081:8081'
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot
+      - SPRING_DATASOURCE_USERNAME=debtsbot
+      - SPRING_DATASOURCE_PASSWORD=debtsbot
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    depends_on:
+      - debts_bot_db
