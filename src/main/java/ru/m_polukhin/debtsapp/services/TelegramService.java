@@ -49,6 +49,7 @@ public class TelegramService extends DefaultAbsSender {
                     null,
                     null);
         }
+        //todo refactor
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {

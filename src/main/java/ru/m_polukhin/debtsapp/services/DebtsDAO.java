@@ -54,8 +54,26 @@ public class DebtsDAO {
         }
     }
 
+    public Page<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient, Pageable pageable) throws UserNotFoundException {
+        var transactions = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender), getIdByName(recipient), pageable);
+        try {
+            return coverTransactions(transactions);
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
+    }
+
     public Page<TransactionInfo> findAllTransactionsRelated(Long chatId, Long userId, Pageable pageable) throws UserNotFoundException {
         Page<Transaction> transactions = transactionRepository.findAllByChatIdAndSenderIdOrChatIdAndRecipientId(chatId, userId, chatId, userId, pageable);
+        try {
+            return coverTransactions(transactions);
+        } catch (UserNotFoundUnchecked e) {
+            throw new UserNotFoundException(e.getMessage());
+        }
+    }
+
+    public Page<TransactionInfo> findAllTransactionsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
+        Page<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId, userId, pageable);
         try {
             return coverTransactions(transactions);
         } catch (UserNotFoundUnchecked e) {
@@ -70,6 +88,15 @@ public class DebtsDAO {
                             getNameById(debt.getRecipientId()),
                             debt.getSum(),
                             chatId);
+    }
+
+    public DebtInfo getDebt(String sender, String receiver) throws UserNotFoundException {
+        Debt debt = debtRepository.getDebtBetweenUsers(getIdByName(sender), getIdByName(receiver));
+        if (debt == null) return new DebtInfo(sender, receiver, 0L, 0L);
+        return new DebtInfo(getNameById(debt.getSenderId()),
+                getNameById(debt.getRecipientId()),
+                debt.getSum(),
+                debt.getChatId());
     }
 
     public Page<DebtInfo> getAllDebtsInChat(Long chatId, Pageable page) {
@@ -129,10 +156,6 @@ public class DebtsDAO {
 
     public List<Long> getAllChats() {
         return debtRepository.findAllUniqueChatIds();
-    }
-
-    public void deleteZeroSumDebts() {
-        debtRepository.deleteZeroSumDebts();
     }
 
     public void deleteChatHistory(Long chatId) {

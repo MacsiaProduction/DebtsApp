@@ -30,20 +30,23 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
                       @Param("sum") Long sum,
                       @Param("chatId") Long chatId);
 
-    @Modifying
-    @Transactional
-    @Query(value = "DELETE FROM debts WHERE sum = 0", nativeQuery = true)
-    void deleteZeroSumDebts();
+    @Transactional(readOnly = true)
+    @Query("SELECT d " +
+            "FROM Debt d " +
+            "WHERE d.id.chatId = :chatId " +
+            "AND ((d.id.senderId = :senderId AND d.id.recipientId = :recipientId) " +
+            "OR (d.id.senderId = :recipientId AND d.id.recipientId = :senderId))")
+    Debt getDebtBetweenUsers(@Param("senderId") Long senderId,
+                             @Param("recipientId") Long recipientId,
+                             @Param("chatId") Long chatId);
 
     @Transactional(readOnly = true)
     @Query("SELECT d " +
             "FROM Debt d " +
-            "WHERE ((d.id.senderId = :senderId AND d.id.recipientId = :recipientId) OR " +
-            "(d.id.senderId = :recipientId AND d.id.recipientId = :senderId)) " +
-            "AND d.id.chatId = :chatId")
+            "WHERE ((d.id.senderId = :senderId AND d.id.recipientId = :recipientId) " +
+            "OR (d.id.senderId = :recipientId AND d.id.recipientId = :senderId))")
     Debt getDebtBetweenUsers(@Param("senderId") Long senderId,
-                             @Param("recipientId") Long recipientId,
-                             @Param("chatId") Long chatId);
+                             @Param("recipientId") Long recipientId);
 
 
     @Transactional(readOnly = true)
@@ -60,12 +63,15 @@ public interface DebtRepository extends CrudRepository<Debt, Long> {
             "ORDER BY d.sum DESC")
     Page<Debt> findAllDebtsRelated(@Param("chatId") Long chatId, @Param("id") Long id, Pageable pageable);
 
+    @Transactional(readOnly = true)
     @Query("SELECT DISTINCT d.id.chatId FROM Debt d WHERE d.sum <> 0")
     List<Long> findAllUniqueChatIds();
 
+    @Transactional(readOnly = true)
     @Query("SELECT d FROM Debt d WHERE d.id.chatId = :chatId ORDER BY d.sum DESC")
     Page<Debt> findByChatId(@Param("chatId") Long chatId, Pageable pageable);
 
+    @Transactional
     @Query("delete FROM Debt d WHERE d.id.chatId = :chatId")
     void deleteAllByChatId(Long chatId);
 }

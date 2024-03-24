@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - include: 
+      file: db/changelog/changeset/tables_creation.sql
+  - include:
+      file: db/changelog/changeset/foreign_keys.sql
+  - include:
+      file: db/changelog/changeset/checks.sql
+  - include:
+      file: db/changelog/changeset/triggers.sql
