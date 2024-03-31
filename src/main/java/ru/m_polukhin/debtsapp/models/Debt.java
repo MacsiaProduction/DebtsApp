@@ -7,35 +7,15 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Table("debts")
-public final class Debt {
-    @Id
-    private DebtId id;
-
-    @Column("sum")
-    private Long sum;
-
-    public Long getSenderId() {
-        return id.getSenderId();
-    }
-
-    public Long getRecipientId() {
-        return id.getRecipientId();
-    }
-
-    public Long getChatId() {
-        return id.getChatId();
-    }
-}
-
-@Data
-@NoArgsConstructor
 @AllArgsConstructor
-class DebtId {
+@NoArgsConstructor
+public class Debt {
+    @Id
+    @Column("id")
+    private Long id; // Surrogate key
+
     @Column("sender_id")
     private Long senderId;
 
@@ -44,4 +24,7 @@ class DebtId {
 
     @Column("chat_id")
     private Long chatId;
+
+    @Column("sum")
+    private Long sum;
 }

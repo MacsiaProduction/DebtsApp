@@ -190,7 +190,7 @@ public class DebtsDAO {
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
-        }).filter(debtInfo -> debtInfo.sum()!=0).collect(Collectors.toList()));
+        }).collect(Collectors.toList()));
     }
 
     private TransactionInfo coverTransaction(Transaction transaction) throws UserNotFoundException {

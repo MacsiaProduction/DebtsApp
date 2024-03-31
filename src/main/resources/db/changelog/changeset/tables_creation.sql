@@ -16,21 +16,17 @@ create table if not exists users
         unique
 );
 
-create table if not exists debts
-(
-    sum          bigint default 0 not null,
-    sender_id    bigint           not null,
-    recipient_id bigint           not null,
-    chat_id      bigint           not null,
-    constraint debts_pk
-        primary key (sender_id, recipient_id, chat_id),
-    constraint unique_sender_recipient_chat
-        unique (sender_id, recipient_id, chat_id)
+CREATE TABLE IF NOT EXISTS debts (
+     id BIGSERIAL PRIMARY KEY,
+     sum bigint DEFAULT 0 NOT NULL,
+     sender_id bigint NOT NULL,
+     recipient_id bigint NOT NULL,
+     chat_id bigint NOT NULL,
+     CONSTRAINT unique_sender_recipient_chat UNIQUE (sender_id, recipient_id, chat_id)
 );
 
-create unique index idx_unique_sender_recipient
-    on debts (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), chat_id);
-
+CREATE UNIQUE INDEX idx_unique_sender_recipient
+    ON debts (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), chat_id);
 create table if not exists active_session_tokens
 (
     user_id         bigserial not null,

@@ -1,6 +1,6 @@
 package ru.m_polukhin.debtsapp.models;
 
-import lombok.Getter;
+import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -9,7 +9,7 @@ import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
 import java.sql.Timestamp;
 
-@Getter
+@Data
 @Table(name="transactions")
 public final class Transaction {
     @Id
@@ -32,7 +32,7 @@ public final class Transaction {
     private final String comment;
 
     @Column("time")
-    private final Timestamp timestamp;
+    private Timestamp timestamp;
 
     public Transaction(Long sum, Long senderId, Long recipientId, Long chatId, String comment) throws ParseException, UserNotFoundException {
         this.sum = sum;
