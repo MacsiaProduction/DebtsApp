@@ -1,25 +1,20 @@
 package ru.m_polukhin.debtsapp.models;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-import javax.persistence.*;
 import java.sql.Timestamp;
 
-@Getter
-@Entity
-@NoArgsConstructor
-@AllArgsConstructor
-@Table(name = "active_session_tokens")
-public final class ActiveSessionToken {
+@Table("active_session_tokens")
+public record ActiveSessionToken (
     @Id
-    @Column(name = "user_id", unique = true, nullable = false)
-    private Long userId;
+    @Column("user_id")
+    Long userId,
 
-    @Column(name = "identifier_hash", unique = true, nullable = false)
-    private String hash;
+    @Column("identifier_hash")
+    String hash,
 
-    @Column(name = "expiration_time", nullable = false)
-    private Timestamp expirationDate;
-}
+    @Column("expiration_time")
+    Timestamp expirationDate
+) {}

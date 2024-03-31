@@ -1,42 +1,38 @@
 package ru.m_polukhin.debtsapp.models;
 
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 
-import javax.persistence.*;
 import java.sql.Timestamp;
 
-@Entity
 @Getter
-@NoArgsConstructor
 @Table(name="transactions")
 public final class Transaction {
     @Id
-    @Column(name = "transaction_id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column("transaction_id")
     private Long id;
 
-    @Column(name = "sum")
-    private Long sum;
+    @Column("sum")
+    private final Long sum;
 
-    @Column(name = "sender_id")
-    private Long senderId;
+    @Column("sender_id")
+    private final Long senderId;
 
-    @Column(name = "recipient_id")
-    private Long recipientId;
+    @Column("recipient_id")
+    private final Long recipientId;
 
-    @Column(name = "chat_id")
-    private Long chatId;
+    @Column("chat_id")
+    private final Long chatId;
 
-    @Column(name = "comment")
-    private String comment;
+    @Column("comment")
+    private final String comment;
 
-    @CreationTimestamp
-    @Column(name = "time")
-    private Timestamp timestamp;
+    @Column("time")
+    private final Timestamp timestamp;
 
     public Transaction(Long sum, Long senderId, Long recipientId, Long chatId, String comment) throws ParseException, UserNotFoundException {
         this.sum = sum;
@@ -44,6 +40,7 @@ public final class Transaction {
         this.recipientId = recipientId;
         this.chatId = chatId;
         this.comment = comment;
+        this.timestamp = new Timestamp(System.currentTimeMillis());
         if (recipientId.equals(senderId)) throw new UserNotFoundException("Me");
         if (sum < 0) throw new ParseException("Value of transaction should be positive");
     }

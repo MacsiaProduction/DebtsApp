@@ -1,5 +1,6 @@
 package ru.m_polukhin.debtsapp.dto;
 
+//todo refactor to use dto
 public record DebtInfo(String from, String to, Long sum, Long chatId) {
     @Override
     public String toString() {

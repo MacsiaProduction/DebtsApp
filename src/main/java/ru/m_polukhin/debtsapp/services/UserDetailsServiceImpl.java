@@ -27,7 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("User " + userId + " session not Found");
         }
         return new  User(userId,
-                        sessionToken.getHash(),
+                        sessionToken.hash(),
                         Collections.singleton(new SimpleGrantedAuthority("USER")));
     }
 }

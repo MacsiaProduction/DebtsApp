@@ -30,13 +30,13 @@ public class SecurityService {
         try {
             var session = dao.getActiveSession(sessionToken);
             //check lifetime
-            if (session.getExpirationDate().before(new Date())) {
+            if (session.expirationDate().before(new Date())) {
                 throw new UserNotFoundException("Session Expired");
             }
 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                    session.getUserId(), sessionToken));
-            var jwtToken =  tokenUtils.generateJwtToken(String.valueOf(session.getUserId()));
+                    session.userId(), sessionToken));
+            var jwtToken =  tokenUtils.generateJwtToken(String.valueOf(session.userId()));
             return ResponseEntity.ok(jwtToken);
         } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);

@@ -15,6 +15,7 @@ import ru.m_polukhin.debtsapp.services.TelegramService;
 import ru.m_polukhin.debtsapp.utils.Calculator;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -49,6 +50,7 @@ public class TelegramController extends TelegramLongPollingBot {
         var message = update.getMessage().getText();
         var chatId = update.getMessage().getChatId();
         var threadId = update.getMessage().getMessageThreadId();
+        var messageId = update.getMessage().getMessageId();
 
         var user = update.getMessage().getFrom();
         var username = user.getUserName();
@@ -64,7 +66,7 @@ public class TelegramController extends TelegramLongPollingBot {
                     activateSession(chatId, threadId, user, messageSplit[1]);
                 }
             }
-            case ADD, PAY -> addCommand(chatId, threadId, user, messageSplit);
+            case ADD, PAY -> addCommand(chatId, threadId, messageId, user, messageSplit);
             case HELP -> helpCommand(chatId, threadId);
             case GET -> getCommand(chatId, threadId, username, messageSplit);
             case HISTORY -> historyCommand(chatId, threadId, user, messageSplit);
@@ -104,44 +106,33 @@ public class TelegramController extends TelegramLongPollingBot {
         helpCommand(chatId, threadId);
     }
 
-    private void addCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
-        String text;
+    private void addCommand(Long chatId, Integer threadId, Integer messageId, User user, String[] messageSplit) {
         try {
-            if (messageSplit.length < 3) throw new ParseException("Wrong argument count");
-
-            String recipient = messageSplit[1];
-            // Remove '@' from the recipient username if present
-            if (recipient.startsWith("@")) {
-                recipient = recipient.substring(1);
+            if (messageSplit.length < 3) {
+                throw new ParseException("Wrong argument count");
             }
 
-            String comment = "";
-            if (messageSplit.length != 3) {
-                comment = concatArrayExceptFirstThree(messageSplit);
-            }
+            String recipient = messageSplit[1].startsWith("@") ? messageSplit[1].substring(1) : messageSplit[1];
+            String comment = messageSplit.length > 3 ? concatArrayExceptFirstThree(messageSplit) : "";
 
             Long sum = Calculator.evaluateExpression(messageSplit[2]);
             var transaction = dao.addTransaction(chatId, user.getId(), recipient, sum, comment);
-            text = transaction.toString();
-        } catch (NumberFormatException | ParseException  e) {
-            text = "Wrong format: " + e.getMessage();
+            telegramService.markAsRead(chatId, messageId);
+        } catch (NumberFormatException | ParseException e) {
+            telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
         } catch (UserNotFoundException e) {
-            text = "User " + e.getMessage()+ " not found";
+            telegramService.sendMessage(chatId, threadId, "User " + e.getMessage() + " not found");
         }
-        telegramService.sendMessage(chatId, threadId, text);
     }
 
     private void getCommand(Long chatId, Integer threadId, String username, String[] messageSplit) {
         String text;
         try {
-            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
-
-            String recipient = messageSplit[1];
-            // Remove '@' from the recipient username if present
-            if (recipient.startsWith("@")) {
-                recipient = recipient.substring(1);
+            if (messageSplit.length != 2) {
+                throw new ParseException("Wrong argument count");
             }
 
+            String recipient = messageSplit[1].startsWith("@") ? messageSplit[1].substring(1) : messageSplit[1];
             var debt = dao.getDebt(chatId, username, recipient);
             text = debt.toString();
         } catch (ParseException e) {
@@ -153,24 +144,20 @@ public class TelegramController extends TelegramLongPollingBot {
     }
 
     private void debtsCommand(Long chatId, Integer threadId, Long userId, String[] messageSplit) {
-        String text;
         try {
-            PageRequest page;
-            if (messageSplit.length != 2) {
-                page = PageRequest.of(0, 20);
-            } else {
-                page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
+            int pageNumber = 0;
+            if (messageSplit.length == 2) {
+                pageNumber = Integer.parseInt(messageSplit[1]);
             }
+            PageRequest page = PageRequest.of(pageNumber, 20);
             var res = dao.findAllDebtsRelated(chatId, userId, page);
-            List<String> res2 = new ArrayList<>();
-            res.forEach(t -> res2.add(t.toString()));
-            text = String.join("\n", res2);
+            String text = String.join("\n", res.map(Object::toString).toList());
+            telegramService.sendMessage(chatId, threadId, text);
         } catch (UserNotFoundException e) {
-            text = "User with name " + e.getMessage() + " isn't registered";
+            telegramService.sendMessage(chatId, threadId, "User with name " + e.getMessage() + " isn't registered");
         } catch (NumberFormatException e) {
-            text = "Wrong format: "+e.getMessage();
+            telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
         }
-        telegramService.sendMessage(chatId, threadId, text);
     }
 
     private void helpCommand(Long chatId, Integer threadId) {
@@ -204,15 +191,11 @@ public class TelegramController extends TelegramLongPollingBot {
     }
 
     private String concatArrayExceptFirstThree(String[] words) {
-        StringBuilder result = new StringBuilder();
-
         if (words.length > 3) {
-            for (int i = 3; i < words.length; i++) {
-                result.append(words[i]).append(" ");
-            }
+            return String.join(" ", Arrays.copyOfRange(words, 3, words.length));
+        } else {
+            return "";
         }
-
-        return result.toString();
     }
 
 

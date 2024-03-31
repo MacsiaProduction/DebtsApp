@@ -4,9 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
+import org.telegram.telegrambots.meta.api.methods.reactions.SetMessageReaction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionType;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeEmoji;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.m_polukhin.debtsapp.configs.BotConfig;
+
+import java.util.List;
 
 @Service
 public class TelegramService extends DefaultAbsSender {
@@ -21,37 +26,37 @@ public class TelegramService extends DefaultAbsSender {
     }
 
     public void sendMessage(Long chatId, Integer threadId, String text) {
-        SendMessage sendMessage;
         if (text.isEmpty()) {
-            sendMessage = new SendMessage(
-                    chatId.toString(),
-                    threadId,
-                    "Nothing to show",
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null);
-        } else {
-            sendMessage = new SendMessage(
-                    chatId.toString(),
-                    threadId,
-                    text,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null);
+            text = "Nothing to show";
         }
-        //todo refactor
+        var sendMessage = new SendMessage(
+                chatId.toString(),
+                threadId,
+                text,
+                null,
+                true,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
         try {
-            execute(sendMessage);
+           execute(sendMessage);
+        } catch (TelegramApiException e) {
+            if (e.getMessage().contains("[403]") || e.getMessage().contains("[404]")) {
+                dbOptimizationService.deleteDeletedChats(chatId);
+            }
+        }
+    }
+
+    public void markAsRead(Long chatId, Integer messageId) {
+        ReactionTypeEmoji reactionTypeEmoji = new ReactionTypeEmoji(ReactionType.EMOJI_TYPE, "\uD83D\uDC4D");
+        var response = new SetMessageReaction(chatId.toString(), messageId, List.of(reactionTypeEmoji), false);
+        try {
+            execute(response);
         } catch (TelegramApiException e) {
             if (e.getMessage().contains("[403]") || e.getMessage().contains("[404]")) {
                 dbOptimizationService.deleteDeletedChats(chatId);

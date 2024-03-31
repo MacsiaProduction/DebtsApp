@@ -5,4 +5,6 @@ import org.springframework.stereotype.Repository;
 import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
 
 @Repository
-public interface SessionRepository extends CrudRepository<ActiveSessionToken, Long> {}
+public interface SessionRepository extends CrudRepository<ActiveSessionToken, Long> {
+    //todo redis
+}

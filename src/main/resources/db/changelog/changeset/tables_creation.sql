@@ -1,8 +1,6 @@
 create table if not exists transactions
 (
-    transaction_id bigint default nextval('transactions_id_seq'::regclass) not null
-        constraint transactions_pk
-            primary key,
+    transaction_id BIGSERIAL PRIMARY KEY                                   not null,
     sender_id      bigint                                                  not null,
     recipient_id   bigint                                                  not null,
     sum            bigint default 0                                        not null,
@@ -13,9 +11,7 @@ create table if not exists transactions
 
 create table if not exists users
 (
-    user_id       bigint default nextval('users_id_seq'::regclass) not null
-        constraint users_pk
-            primary key,
+    user_id       bigint primary key                               not null,
     telegram_name varchar                                          not null
         unique
 );
@@ -37,9 +33,7 @@ create unique index idx_unique_sender_recipient
 
 create table if not exists active_session_tokens
 (
-    user_id         bigserial,
+    user_id         bigserial not null,
     identifier_hash varchar   not null,
     expiration_time timestamp not null
 );
-
-

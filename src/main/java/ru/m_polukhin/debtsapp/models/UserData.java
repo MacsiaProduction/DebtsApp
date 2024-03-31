@@ -1,23 +1,15 @@
 package ru.m_polukhin.debtsapp.models;
 
-import javax.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Getter
-@Entity
-@NoArgsConstructor
-@Table(name = "users")
-public final class UserData {
-    public UserData(Long id, String telegramName) {
-        this.id = id;
-        this.telegramName = telegramName;
-    }
+@Table("users")
+public record UserData (
+        @Id
+        @Column("user_id")
+        Long id,
 
-    @Id
-    @Column(name = "user_id", unique = true, nullable = false)
-    private Long id;
-
-    @Column(name = "telegram_name", unique = true, nullable = false)
-    private String telegramName;
-}
+        @Column("telegram_name")
+        String telegramName
+) {}

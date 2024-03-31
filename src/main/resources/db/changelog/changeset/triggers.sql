@@ -14,7 +14,7 @@ $$
 CREATE TRIGGER expire_tokens_trigger
     BEFORE DELETE ON active_session_tokens
     FOR EACH ROW
-EXECUTE FUNCTION delete_expired_tokens();
+EXECUTE PROCEDURE delete_expired_tokens();
 
 -- Create the trigger function to delete rows with zero sum
 CREATE OR REPLACE FUNCTION delete_zero_sum_debts()
@@ -36,4 +36,4 @@ $$
 CREATE TRIGGER check_zero_sum_debts_trigger
     AFTER UPDATE ON debts
     FOR EACH ROW
-EXECUTE FUNCTION delete_zero_sum_debts();
+EXECUTE PROCEDURE delete_zero_sum_debts();

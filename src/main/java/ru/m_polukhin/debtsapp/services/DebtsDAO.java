@@ -41,7 +41,7 @@ public class DebtsDAO {
     //todo update nickname
     public void addUser(Long userId, String username) {
         if(!userRepository.existsById(userId)) {
-            userRepository.save(new UserData(userId, username));
+            userRepository.insertUser(userId, username);
         }
     }
 
@@ -137,7 +137,7 @@ public class DebtsDAO {
     public ActiveSessionToken getActiveSession(String sessionToken) throws UserNotFoundException {
         var tokens = sessionRepository.findAll();
         for(var token: tokens) {
-            if (passwordEncoder.matches(sessionToken, token.getHash())) {
+            if (passwordEncoder.matches(sessionToken, token.hash())) {
                 return token;
             }
         }
@@ -151,7 +151,7 @@ public class DebtsDAO {
     }
 
     public Long getIdByName(String username) throws UserNotFoundException {
-        return findUserByName(username).getId();
+        return findUserByName(username).id();
     }
 
     public List<Long> getAllChats() {
@@ -166,7 +166,7 @@ public class DebtsDAO {
     private String getNameById(Long id) throws UserNotFoundException {
         var userInfo = userRepository.findById(id);
         if (userInfo.isEmpty()) throw new UserNotFoundException(id);
-        return userInfo.get().getTelegramName();
+        return userInfo.get().telegramName();
     }
 
     private Page<TransactionInfo> coverTransactions(Page<Transaction> transactions) throws UserNotFoundUnchecked {
@@ -179,8 +179,9 @@ public class DebtsDAO {
         });
     }
 
-    private Page<DebtInfo> coverDebts(Page<Debt> debts) throws UserNotFoundUnchecked {
-        return new PageImpl<>(debts.map(debt -> {
+    //todo maybe not page
+    private Page<DebtInfo> coverDebts(List<Debt> debts) throws UserNotFoundUnchecked {
+        return new PageImpl<>(debts.stream().map(debt -> {
             try {
                 return new DebtInfo(getNameById(debt.getSenderId()),
                                     getNameById(debt.getRecipientId()),
@@ -189,7 +190,7 @@ public class DebtsDAO {
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
-        }).stream().filter(debtInfo -> debtInfo.sum()!=0).collect(Collectors.toList()));
+        }).filter(debtInfo -> debtInfo.sum()!=0).collect(Collectors.toList()));
     }
 
     private TransactionInfo coverTransaction(Transaction transaction) throws UserNotFoundException {

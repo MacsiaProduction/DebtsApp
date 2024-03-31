@@ -43,7 +43,7 @@ public class WebController {
     }
 
     @Operation(summary = "Returns page of all transactions related to {user}")
-    @GetMapping("transactions")
+    @GetMapping("transactions/chat")
     @ApiResponses(value = {
             @ApiResponse(code = 201, message = "Transaction created successfully"),
             @ApiResponse(code = 400, message = "Bad request"),
@@ -84,7 +84,7 @@ public class WebController {
     }
 
     @Operation(summary = "Returns page of all transactions from sender to recipient")
-    @GetMapping("transactions/between")
+    @GetMapping("transactions/between/chat")
     @ApiResponses(value = {
             @ApiResponse(code = 201, message = "Transaction created successfully"),
             @ApiResponse(code = 400, message = "Bad request"),
@@ -145,7 +145,7 @@ public class WebController {
     }
 
     @Operation(summary = "Returns debt between {fromName} and {toName}")
-    @GetMapping("debts/between")
+    @GetMapping("debts/between/chat")
     @ApiResponses(value = {
             @ApiResponse(code = 201, message = "Transaction created successfully"),
             @ApiResponse(code = 400, message = "Bad request"),
