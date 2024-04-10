@@ -8,7 +8,6 @@ import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,15 +27,13 @@ public class TokenUtils {
     public TokenUtils() {
         this.secretKey = generateKey();
     }
-    public static SecretKey generateKey() {
+    private SecretKey generateKey() {
         try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("DES");
-            SecureRandom secRandom = new SecureRandom();
-            keyGenerator.init(secRandom);
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256"); // Use HmacSHA256
+            keyGenerator.init(256); // Initialize with a key size of 256 bits
             return keyGenerator.generateKey();
-
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("No such algorithm");
+            throw new IllegalStateException("No such algorithm", e);
         }
     }
 
@@ -47,12 +44,13 @@ public class TokenUtils {
                 .subject(subject)
                 .issuedAt(issuedDate)
                 .expiration(expiredDate)
-                .signWith(secretKey)
+                .signWith(secretKey) // Update the signWith method
                 .compact();
     }
 
     public String getSubject(String token) {
         return Jwts.parser()
+                .verifyWith(secretKey)
                 .decryptWith(secretKey)
                 .build().parseSignedClaims(token).getPayload().getSubject();
     }

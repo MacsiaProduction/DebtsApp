@@ -13,4 +13,6 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
     Page<Transaction> findAllBySenderIdAndRecipientId(Long senderId, Long recipientId, Pageable pageable);
     Page<Transaction> findAllBySenderIdOrRecipientId(Long senderId, Long ChatId, Pageable pageable);
     void deleteAllByChatId(Long chatId);
+    // for testing purposes only
+    void deleteAll();
 }

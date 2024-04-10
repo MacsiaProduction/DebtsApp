@@ -130,7 +130,7 @@ public class DebtsDAO {
     }
 
     public void addActiveSession(ActiveSessionToken activeSessionToken) {
-        sessionRepository.save(activeSessionToken);
+        sessionRepository.insertSessionToken(activeSessionToken.userId(), activeSessionToken.hash(), activeSessionToken.expirationDate());
     }
 
     //todo give a client some extra number to optimize search in db

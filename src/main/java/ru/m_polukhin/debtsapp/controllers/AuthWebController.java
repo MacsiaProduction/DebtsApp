@@ -22,16 +22,11 @@ public class AuthWebController {
     @PostMapping("/login")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "User login successfully"),
-            @ApiResponse(code = 401, message = "Unauthorized")
+            @ApiResponse(code = 400, message = "Bad credentials")
     })
-    @PreAuthorize("permitAll") // Allow all users to access this endpoint without authentication
+    @PreAuthorize("permitAll")
     public ResponseEntity<?> authenticateUser(@RequestBody String sessionToken) {
-        try {
-            return ResponseEntity.ok(securityService.authenticateUser(sessionToken));
-        } catch (Exception e) {
-            e.printStackTrace(System.out);
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        }
+        return securityService.authenticateUser(sessionToken);
     }
 
     @Operation(summary = "Get session token for access via telegram")
@@ -39,8 +34,18 @@ public class AuthWebController {
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Get token successfully"),
     })
-    @PreAuthorize("permitAll") // Allow all users to access this endpoint without authentication
-    public ResponseEntity<String> authenticateUser() {
+    @PreAuthorize("permitAll")
+    public ResponseEntity<String> getUserSession() {
         return ResponseEntity.ok(securityService.generateSessionToken());
+    }
+
+    @Operation(summary = "Page for the case that access was denied")
+    @GetMapping("/access-denied")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Access was denied"),
+    })
+    @PreAuthorize("permitAll")
+    public ResponseEntity<String> accessDenied() {
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

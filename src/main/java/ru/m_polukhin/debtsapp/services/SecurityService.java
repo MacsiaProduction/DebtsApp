@@ -35,11 +35,11 @@ public class SecurityService {
             }
 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                    session.userId(), sessionToken));
+                     session.userId(), sessionToken));
             var jwtToken =  tokenUtils.generateJwtToken(String.valueOf(session.userId()));
             return ResponseEntity.ok(jwtToken);
         } catch (Exception e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
