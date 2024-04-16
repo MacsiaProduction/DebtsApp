@@ -41,15 +41,6 @@ public interface DebtRepository extends ListCrudRepository<Debt, Long> {
     @Transactional(readOnly = true)
     @Query("SELECT * " +
             "FROM debts " +
-            "WHERE ((sender_id = :senderId AND recipient_id = :recipientId) " +
-            "OR (sender_id = :recipientId AND recipient_id = :senderId))")
-    Debt getDebtBetweenUsers(@Param("senderId") Long senderId,
-                             @Param("recipientId") Long recipientId);
-
-
-    @Transactional(readOnly = true)
-    @Query("SELECT * " +
-            "FROM debts " +
             "WHERE (sender_id = :id OR recipient_id = :id)"+
             "ORDER BY sum DESC")
     List<Debt> findAllDebtsRelated(@Param("id") Long id, Pageable pageable);

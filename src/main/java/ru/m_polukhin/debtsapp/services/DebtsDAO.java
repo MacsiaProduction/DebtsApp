@@ -2,20 +2,23 @@ package ru.m_polukhin.debtsapp.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.m_polukhin.debtsapp.dto.DebtInfo;
 import ru.m_polukhin.debtsapp.dto.TransactionInfo;
+import ru.m_polukhin.debtsapp.exceptions.ParseException;
+import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundUnchecked;
-import ru.m_polukhin.debtsapp.models.*;
+import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
+import ru.m_polukhin.debtsapp.models.Debt;
+import ru.m_polukhin.debtsapp.models.Transaction;
+import ru.m_polukhin.debtsapp.models.UserData;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
 import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
-import ru.m_polukhin.debtsapp.exceptions.ParseException;
-import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
+import ru.m_polukhin.debtsapp.utils.CustomPageImpl;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -90,15 +93,6 @@ public class DebtsDAO {
                             chatId);
     }
 
-    public DebtInfo getDebt(String sender, String receiver) throws UserNotFoundException {
-        Debt debt = debtRepository.getDebtBetweenUsers(getIdByName(sender), getIdByName(receiver));
-        if (debt == null) return new DebtInfo(sender, receiver, 0L, 0L);
-        return new DebtInfo(getNameById(debt.getSenderId()),
-                getNameById(debt.getRecipientId()),
-                debt.getSum(),
-                debt.getChatId());
-    }
-
     public Page<DebtInfo> getAllDebtsInChat(Long chatId, Pageable page) {
         try {
             return coverDebts(debtRepository.findByChatId(chatId, page));
@@ -170,18 +164,18 @@ public class DebtsDAO {
     }
 
     private Page<TransactionInfo> coverTransactions(Page<Transaction> transactions) throws UserNotFoundUnchecked {
-        return transactions.map(transaction -> {
+        return new CustomPageImpl<>(transactions.stream().map(transaction -> {
             try {
                 return coverTransaction(transaction);
             } catch (UserNotFoundException e) {
                 throw new UserNotFoundUnchecked(e.getMessage());
             }
-        });
+        }).collect(Collectors.toList()));
     }
 
     //todo maybe not page
     private Page<DebtInfo> coverDebts(List<Debt> debts) throws UserNotFoundUnchecked {
-        return new PageImpl<>(debts.stream().map(debt -> {
+        return new CustomPageImpl<>(debts.stream().map(debt -> {
             try {
                 return new DebtInfo(getNameById(debt.getSenderId()),
                                     getNameById(debt.getRecipientId()),
