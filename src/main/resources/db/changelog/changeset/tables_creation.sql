@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS debts (
 
 CREATE UNIQUE INDEX idx_unique_sender_recipient
     ON debts (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), chat_id);
+
 create table if not exists active_session_tokens
 (
     user_id         bigserial not null,

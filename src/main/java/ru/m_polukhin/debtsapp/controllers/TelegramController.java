@@ -32,7 +32,6 @@ public class TelegramController extends TelegramLongPollingBot {
     private static final String HISTORY = "/history";
     private static final String HELP = "/help";
     private static final String DEBTS = "/debts";
-    private static final String PAY = "/pay";
 
     @Autowired
     public TelegramController(DebtsDAO dao, TelegramService telegramService, SecurityService securityService, BotConfig config) {
@@ -66,7 +65,7 @@ public class TelegramController extends TelegramLongPollingBot {
                     activateSession(chatId, threadId, user, messageSplit[1]);
                 }
             }
-            case ADD, PAY -> addCommand(chatId, threadId, messageId, user, messageSplit);
+            case ADD -> addCommand(chatId, threadId, messageId, user, messageSplit);
             case HELP -> helpCommand(chatId, threadId);
             case GET -> getCommand(chatId, threadId, username, messageSplit);
             case HISTORY -> historyCommand(chatId, threadId, user, messageSplit);
@@ -168,7 +167,6 @@ public class TelegramController extends TelegramLongPollingBot {
                 /get TgUsername - checks size of debt between you and him
                 /history {page} (0 by default) - related transactions
                 /debts {page} (0 by default) - related debts
-                /pay TgUsername {sum} - you paid {sum}
                 """;
         telegramService.sendMessage(chatId, threadId, text);
     }

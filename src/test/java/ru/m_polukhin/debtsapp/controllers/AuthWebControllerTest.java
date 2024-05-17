@@ -18,7 +18,7 @@ import ru.m_polukhin.debtsapp.services.SecurityService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@WebMvcTest(AuthWebController.class)
+//todo disable scheduling in tests
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
