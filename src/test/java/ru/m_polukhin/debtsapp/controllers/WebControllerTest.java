@@ -3,6 +3,7 @@ package ru.m_polukhin.debtsapp.controllers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 public class WebControllerTest {
 
     @Autowired
@@ -86,6 +89,7 @@ public class WebControllerTest {
     }
 
     @Test
+    @Order(1)
     public void setUpTests() {}
 
     @Test
@@ -95,9 +99,7 @@ public class WebControllerTest {
         Mockito.when(principal.getName()).thenReturn("1");
 
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/transactions")
-                        .principal(principal)
-                        .param("page", "0")
-                        .param("size", "10"))
+                        .principal(principal))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
@@ -157,8 +159,8 @@ public class WebControllerTest {
 
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/debts")
                         .principal(principal)
-                        .param("page", "0")
-                        .param("size", "10"))
+                        .param("size", "10")
+                        .characterEncoding("utf-8"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
@@ -176,9 +178,7 @@ public class WebControllerTest {
 
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/transactions/chat")
                         .principal(principal)
-                        .param("chatId", "1")
-                        .param("page", "0")
-                        .param("size", "10"))
+                        .param("chatId", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 

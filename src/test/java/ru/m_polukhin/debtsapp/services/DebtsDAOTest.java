@@ -160,7 +160,7 @@ public class DebtsDAOTest {
         assertThat(transactionsPage).isNotNull();
         assertThat(transactionsPage.getContent()).size().isEqualTo(1);
 
-        var transactionInfo = transactionsPage.getContent().getFirst();
+        var transactionInfo = transactionsPage.getContent().get(0);
         assertThat(transactionInfo.sender()).isEqualTo("user1");
         assertThat(transactionInfo.recipient()).isEqualTo("user2");
         assertThat(transactionInfo.comment()).isEqualTo(comment);
@@ -206,7 +206,7 @@ public class DebtsDAOTest {
         assertThat(debtsPageTo).isNotNull();
         assertThat(debtsPageTo.getContent()).size().isEqualTo(1);
 
-        assertThat(debtsPageFrom.getContent().getFirst()).isEqualTo(debtsPageTo.getContent().getFirst());
+        assertThat(debtsPageFrom.getContent().get(0)).isEqualTo(debtsPageTo.getContent().get(0));
     }
 
     @Test
@@ -229,7 +229,7 @@ public class DebtsDAOTest {
         assertThat(debtsPageTo).isNotNull();
         assertThat(debtsPageTo.getContent()).size().isEqualTo(1);
 
-        assertThat(debtsPageFrom.getContent().getFirst()).isEqualTo(debtsPageTo.getContent().getFirst());
+        assertThat(debtsPageFrom.getContent().get(0)).isEqualTo(debtsPageTo.getContent().get(0));
     }
 
     @Test

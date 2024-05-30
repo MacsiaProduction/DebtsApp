@@ -96,8 +96,6 @@ public class TelegramController extends TelegramLongPollingBot {
     }
 
     private void startCommand(Long chatId, Integer threadId, User user) {
-        dao.addUser(1L, "test"); //todo delete
-
         var text = """
                 Well Cum to our club, %s!
                 """;

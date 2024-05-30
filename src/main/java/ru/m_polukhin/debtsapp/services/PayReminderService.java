@@ -3,14 +3,12 @@ package ru.m_polukhin.debtsapp.services;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
 import ru.m_polukhin.debtsapp.dto.DebtInfo;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@Service
 @RequiredArgsConstructor
 public class PayReminderService {
     private final TelegramService telegramService;
