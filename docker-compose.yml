@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   debts_bot_db:
-    image: postgres
+    image: postgres:16-alpine
     container_name: debts_bot_db
     restart: always
     environment:

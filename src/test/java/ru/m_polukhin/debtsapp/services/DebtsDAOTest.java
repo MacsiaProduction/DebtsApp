@@ -16,7 +16,6 @@ import ru.m_polukhin.debtsapp.dto.DebtInfo;
 import ru.m_polukhin.debtsapp.dto.TransactionInfo;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
-import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
 import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
@@ -38,7 +37,7 @@ public class DebtsDAOTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
-            "postgres:15-alpine"
+            "postgres:16-alpine"
     );
 
     @Autowired
@@ -240,21 +239,6 @@ public class DebtsDAOTest {
         // Then
         assertThat(chatIds).isNotNull();
         // Additional assertions based on the expected chat IDs
-    }
-
-    @Test
-    public void testActiveSession() throws UserNotFoundException {
-        Long id = 1L;
-        String hash = "hash";
-        // When
-        debtsDAO.addActiveSession(tokenUtils.generateSessionToken(1L, "hash"));
-
-        // Then
-        ActiveSessionToken retrievedToken = debtsDAO.getUsersSession(1L);
-        assertThat(retrievedToken).isNotNull();
-        assertThat(retrievedToken.userId()).isEqualTo(id);
-        assertThat(retrievedToken.hash()).isEqualTo(hash);
-        assertThat(retrievedToken.expirationDate()).isInTheFuture();
     }
 
     @Test

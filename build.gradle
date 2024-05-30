@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'ru.m_polukhin.debtsapp'
-version = '0.1.0'
+version = '0.6.0'
 
 idea {
     module {

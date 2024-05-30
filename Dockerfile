@@ -1,5 +1,5 @@
-FROM openjdk:23
-VOLUME /tmp
+FROM openjdk:23-jdk-slim
 EXPOSE 8081
-COPY build/libs/DebtsApp-0.1.0.jar debts_tg_bot.jar
-ENTRYPOINT ["java","-jar","/debts_tg_bot.jar"]
+VOLUME /jar
+COPY build/libs/DebtsApp-0.6.0.jar debts_tg_bot2.jar
+ENTRYPOINT ["java","-Xmx256m","-XX:+UseG1GC","-jar","/debts_tg_bot2.jar"]
