@@ -3,19 +3,16 @@ package ru.m_polukhin.debtsapp.services;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.m_polukhin.debtsapp.dto.DebtInfo;
 import ru.m_polukhin.debtsapp.dto.TransactionInfo;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundUnchecked;
-import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
 import ru.m_polukhin.debtsapp.models.Debt;
 import ru.m_polukhin.debtsapp.models.Transaction;
 import ru.m_polukhin.debtsapp.models.UserData;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
-import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
 import ru.m_polukhin.debtsapp.utils.CustomPageImpl;
@@ -26,12 +23,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class DebtsDAO {
-    private final PasswordEncoder passwordEncoder;
-
     private final TransactionRepository transactionRepository;
     private final DebtRepository debtRepository;
     private final UserRepository userRepository;
-    private final SessionRepository sessionRepository;
 
     public TransactionInfo addTransaction(Long chatId, Long senderId, String recipient, Long sum, String comment) throws UserNotFoundException, ParseException {
         Long recipientId = getIdByName(recipient);
@@ -61,15 +55,6 @@ public class DebtsDAO {
 
     public Page<TransactionInfo> findAllTransactionsRelated(Long chatId, Long userId, Pageable pageable) throws UserNotFoundException {
         Page<Transaction> transactions = transactionRepository.findAllByChatIdAndSenderIdOrChatIdAndRecipientId(chatId, userId, chatId, userId, pageable);
-        try {
-            return coverTransactions(transactions);
-        } catch (UserNotFoundUnchecked e) {
-            throw new UserNotFoundException(e.getMessage());
-        }
-    }
-
-    public Page<TransactionInfo> findAllTransactionsRelated(Long userId, Pageable pageable) throws UserNotFoundException {
-        Page<Transaction> transactions = transactionRepository.findAllBySenderIdOrRecipientId(userId, userId, pageable);
         try {
             return coverTransactions(transactions);
         } catch (UserNotFoundUnchecked e) {
@@ -120,27 +105,6 @@ public class DebtsDAO {
         if (!userRepository.updateExtraInfo(userId, extraInfo)) {
             throw new UserNotFoundException(userId.toString());
         }
-    }
-
-    public void addActiveSession(ActiveSessionToken activeSessionToken) {
-        sessionRepository.insertSessionToken(activeSessionToken.userId(), activeSessionToken.hash(), activeSessionToken.expirationDate());
-    }
-
-    //todo give a client some extra number to optimize search in db
-    public ActiveSessionToken getActiveSession(String sessionToken) throws UserNotFoundException {
-        var tokens = sessionRepository.findAll();
-        for(var token: tokens) {
-            if (passwordEncoder.matches(sessionToken, token.hash())) {
-                return token;
-            }
-        }
-        throw new UserNotFoundException(sessionToken);
-    }
-
-    public ActiveSessionToken getUsersSession(Long userId) throws UserNotFoundException {
-        var token = sessionRepository.findById(userId);
-        if (token.isEmpty()) throw new UserNotFoundException(userId);
-        return token.get();
     }
 
     private Long getIdByName(String username) throws UserNotFoundException {

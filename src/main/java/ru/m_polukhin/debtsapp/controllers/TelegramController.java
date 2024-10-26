@@ -10,7 +10,6 @@ import ru.m_polukhin.debtsapp.configs.BotConfig;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 import ru.m_polukhin.debtsapp.services.DebtsDAO;
-import ru.m_polukhin.debtsapp.services.SecurityService;
 import ru.m_polukhin.debtsapp.services.TelegramService;
 import ru.m_polukhin.debtsapp.utils.Calculator;
 
@@ -23,20 +22,23 @@ import static ru.m_polukhin.debtsapp.controllers.MessageUtil.*;
 
 //todo add paying info
 //todo support doubles
+//todo /edit_last {sum} {comment}
+//todo /stats
+//todo /summary of chat
+//todo /profile TgUsername shows history debts, info
+
 
 @Controller
 public class TelegramController extends TelegramLongPollingBot {
     private final DebtsDAO dao;
     private final TelegramService telegramService;
-    private final SecurityService securityService;
     private final String botName;
 
     @Autowired
-    public TelegramController(DebtsDAO dao, TelegramService telegramService, SecurityService securityService, BotConfig config) {
+    public TelegramController(DebtsDAO dao, TelegramService telegramService, BotConfig config) {
         super(config.getToken());
         this.dao = dao;
         this.telegramService = telegramService;
-        this.securityService = securityService;
         this.botName = config.getBotName();
     }
 
@@ -54,13 +56,7 @@ public class TelegramController extends TelegramLongPollingBot {
         var command = messageSplit[0].replace("@" + botName, "");
         try {
             switch (command) {
-                case MessageUtil.START -> {
-                    if (messageSplit.length == 1) {
-                        startCommand(chatId, threadId, user);
-                    } else {
-                        activateSession(chatId, threadId, user, messageSplit[1]);
-                    }
-                }
+                case MessageUtil.START -> startCommand(chatId, threadId, user);
                 case MessageUtil.ADD -> addCommand(chatId, threadId, messageId, user, messageSplit);
                 case MessageUtil.HELP -> helpCommand(chatId, threadId);
                 case MessageUtil.GET -> getCommand(chatId, threadId, username, messageSplit);
@@ -98,7 +94,7 @@ public class TelegramController extends TelegramLongPollingBot {
             if (messageSplit.length < 2) {
                 throw new ParseException(MessageUtil.WRONG_ARGUMENT_COUNT);
             }
-            String info = concatArrayExceptFirstN(messageSplit, 2);
+            String info = concatArrayExceptFirstN(messageSplit, 1);
             if (info.length() > 100) {
                 throw new ParseException("length of user info bigger then 100");
             }
@@ -238,11 +234,6 @@ public class TelegramController extends TelegramLongPollingBot {
     private String concatArrayExceptFirstN(String[] array, Integer from) {
         if (array.length <= from) return "";
         return String.join(" ", Arrays.copyOfRange(array, from, array.length));
-    }
-
-    private void activateSession(Long chatId, Integer threadId, User user, String message) {
-        securityService.activateSessionToken(user.getId(), message);
-        telegramService.sendMessage(chatId, threadId, SESSION_AUTHENTICATED);
     }
 
     @Override

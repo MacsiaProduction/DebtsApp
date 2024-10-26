@@ -17,10 +17,8 @@ import ru.m_polukhin.debtsapp.dto.TransactionInfo;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
 import ru.m_polukhin.debtsapp.repository.DebtRepository;
-import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
-import ru.m_polukhin.debtsapp.utils.TokenUtils;
 
 import java.util.List;
 import java.util.Objects;
@@ -52,18 +50,11 @@ public class DebtsDAOTest {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    @Autowired
-    private SessionRepository sessionRepository;
-
-    @Autowired
-    private TokenUtils tokenUtils;
-
     @BeforeEach
     public void setUp() {
         // Clean up repositories
         debtRepository.deleteAllDebts();
         transactionRepository.deleteAll();
-        sessionRepository.deleteAll();
         userRepository.deleteAll();
 
         // Insert test data
@@ -108,8 +99,8 @@ public class DebtsDAOTest {
         String comment = "Test transaction";
 
         // When
-        TransactionInfo _transactionInfo1 = debtsDAO.addTransaction(chatId, 1L, "user2", sum, comment);
-        TransactionInfo _transactionInfo2 = debtsDAO.addTransaction(chatId, 2L, "user1", 3*sum, comment);
+        debtsDAO.addTransaction(chatId, 1L, "user2", sum, comment);
+        debtsDAO.addTransaction(chatId, 2L, "user1", 3*sum, comment);
         DebtInfo debtInfo = debtsDAO.getDebt(chatId, "user1", "user2");
 
         // Then
