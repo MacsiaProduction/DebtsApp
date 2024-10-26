@@ -20,13 +20,10 @@ import java.util.List;
 import static ru.m_polukhin.debtsapp.controllers.MessageUtil.*;
 
 
-//todo add paying info
 //todo support doubles
 //todo /edit_last {sum} {comment}
 //todo /stats
-//todo /summary of chat
 //todo /profile TgUsername shows history debts, info
-
 
 @Controller
 public class TelegramController extends TelegramLongPollingBot {
@@ -64,8 +61,9 @@ public class TelegramController extends TelegramLongPollingBot {
                 case MessageUtil.DEBTS -> debtsCommand(chatId, threadId, user, messageSplit);
                 case MessageUtil.ADD_MANY -> add2ManyCommand(chatId, threadId, messageId, user, messageSplit);
                 case MessageUtil.UNDO -> undoCommand(chatId, threadId, user.getId(), messageId);
-                case MessageUtil.USER_INFO -> getUserInfo(chatId, threadId, messageSplit);
-                case MessageUtil.ADD_USER_INFO -> addExtraInfo(chatId, threadId, messageId, user.getId(), messageSplit);
+                case MessageUtil.USER_INFO -> getUserInfoCommand(chatId, threadId, messageSplit);
+                case MessageUtil.ADD_USER_INFO -> addUserInfoCommand(chatId, threadId, messageId, user.getId(), messageSplit);
+                case MessageUtil.SUMMARY -> summaryCommand(chatId, threadId, messageSplit);
                 default -> unknownCommand(chatId, threadId);
             }
         } catch (Exception e) {
@@ -73,7 +71,19 @@ public class TelegramController extends TelegramLongPollingBot {
         }
     }
 
-    private void getUserInfo(Long chatId, Integer threadId, String[] messageSplit) {
+    private void summaryCommand(Long chatId, Integer threadId, String[] messageSplit) {
+        try {
+            PageRequest page = messageSplit.length != 2 ? PageRequest.of(0, 30) : PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
+            var debts = dao.getAllDebtsInChat(chatId, page);
+            StringBuilder sb = new StringBuilder("__Debts summary__\n");
+            debts.forEach(debt -> formatDebtMessage(sb, debt));
+            telegramService.sendMessage(chatId, threadId, sb.toString(), true);
+        } catch (NumberFormatException e) {
+            telegramService.sendMessage(chatId, threadId, WRONG_ARGUMENT_COUNT);
+        }
+    }
+
+    private void getUserInfoCommand(Long chatId, Integer threadId, String[] messageSplit) {
         String text;
         try {
             if (messageSplit.length < 2) {
@@ -89,7 +99,7 @@ public class TelegramController extends TelegramLongPollingBot {
         telegramService.sendMessage(chatId, threadId, text, true);
     }
 
-    private void addExtraInfo(Long chatId, Integer threadId, Integer messageId, Long userId, String[] messageSplit) {
+    private void addUserInfoCommand(Long chatId, Integer threadId, Integer messageId, Long userId, String[] messageSplit) {
         try {
             if (messageSplit.length < 2) {
                 throw new ParseException(MessageUtil.WRONG_ARGUMENT_COUNT);

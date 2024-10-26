@@ -17,6 +17,7 @@ public class MessageUtil {
     public static final String UNDO = "/undo_last";
     public static final String USER_INFO = "/get_info";
     public static final String ADD_USER_INFO = "/add_info";
+    public static final String SUMMARY = "/summary";
 
     // Messages
     public static final String WELCOME_MESSAGE = "Well Cum to our club, *%s*!";
@@ -29,15 +30,12 @@ public class MessageUtil {
             /undo_last - reverts last transaction made by you
             /add_info - adds extra info
             /get_info TgUsername - gets extra info of target user
-            """;
-    public static final String SESSION_AUTHENTICATED = """
-            Your session was authenticated!
-            You have 1 minute ;)
+            /summary - entire chat's debts summary
             """;
     public static final String NOT_RECOGNIZED_COMMAND = "Not recognized";
     public static final String WRONG_ARGUMENT_COUNT = "Wrong argument count";
     public static final String WRONG_FORMAT = "Wrong format: %s";
-    public static final String USER_NOT_FOUND = "User *%s* not found";
+    public static final String USER_NOT_FOUND = "User %s not found";
     public static final String USER_NOT_REGISTERED = "You aren't registered, try write /start";
     public static final String NO_TRANSACTIONS_YET = "You don't have transactions yet";
 
@@ -53,18 +51,28 @@ public class MessageUtil {
         return String.format("*%s* info:\n%s", userData.telegramName(), userData.extraInfo());
     }
 
+    public static String formatDebtMessage(String from, String to, Long sum) {
+        return String.format("*%s* owes *%s* %d₽\n", to, from, sum);
+    }
+
     public static String formatDebtMessage(DebtInfo debt, String username) {
         String from = debt.sum() > 0 ? debt.from() : debt.to();
         String to = debt.sum() > 0 ? debt.to() : debt.from();
         from = (from.equals(username)) ? "You" : from;
         to = (to.equals(username)) ? "You" : to;
-        return String.format("*%s* owes *%s* %d₽\n", to, from, Math.abs(debt.sum()));
+        return formatDebtMessage(from, to, Math.abs(debt.sum()));
     }
 
     public static String oweMessageWithDog(DebtInfo debt) {
         String from = debt.sum() > 0 ? debt.from() : debt.to();
         String to = debt.sum() > 0 ? debt.to() : debt.from();
         return String.format("@%s owes *%s* %d₽\n", to, from, Math.abs(debt.sum()));
+    }
+
+    public static void formatDebtMessage(StringBuilder sb, DebtInfo debt) {
+        String from = debt.sum() > 0 ? debt.from() : debt.to();
+        String to = debt.sum() > 0 ? debt.to() : debt.from();
+        sb.append(formatDebtMessage(from, to, Math.abs(debt.sum())));
     }
 
     public static void formatTransaction(StringBuilder sb, TransactionInfo transaction) {

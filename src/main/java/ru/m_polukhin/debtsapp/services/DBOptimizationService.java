@@ -9,6 +9,7 @@ public class DBOptimizationService {
     private final DebtsDAO dao;
 
     public void deleteDeletedChats(Long chatId) {
-        dao.deleteChatHistory(chatId);
+        //todo wait for next weekly notification and then delete
+//        dao.deleteChatHistory(chatId);
     }
 }
