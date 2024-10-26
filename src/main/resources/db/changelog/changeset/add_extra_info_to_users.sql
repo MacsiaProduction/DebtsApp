@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN extra_info VARCHAR DEFAULT '';

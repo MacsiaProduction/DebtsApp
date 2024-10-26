@@ -17,19 +17,19 @@ public final class Transaction {
     private Long id;
 
     @Column("sum")
-    private final Long sum;
+    private Long sum;
 
     @Column("sender_id")
-    private final Long senderId;
+    private Long senderId;
 
     @Column("recipient_id")
-    private final Long recipientId;
+    private Long recipientId;
 
     @Column("chat_id")
-    private final Long chatId;
+    private Long chatId;
 
     @Column("comment")
-    private final String comment;
+    private String comment;
 
     @Column("time")
     private Timestamp timestamp;

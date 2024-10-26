@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changeset/checks.sql
   - include:
       file: db/changelog/changeset/triggers.sql
+  - include:
+      file: db/changelog/changeset/add_extra_info_to_users.sql

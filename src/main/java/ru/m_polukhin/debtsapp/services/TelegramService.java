@@ -26,23 +26,20 @@ public class TelegramService extends DefaultAbsSender {
     }
 
     public void sendMessage(Long chatId, Integer threadId, String text) {
+        sendMessage(chatId, threadId, text, false);
+    }
+
+    public void sendMessage(Long chatId, Integer threadId, String text, boolean markdown) {
         if (text.isEmpty()) {
             text = "Nothing to show";
         }
-        var sendMessage = new SendMessage(
-                chatId.toString(),
-                threadId,
-                text,
-                null,
-                true,
-                true,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
+        var sendMessage = new SendMessage();
+
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(text);
+        sendMessage.setMessageThreadId(threadId);
+        sendMessage.enableMarkdown(markdown);
+
         try {
            execute(sendMessage);
         } catch (TelegramApiException e) {

@@ -11,5 +11,8 @@ public record UserData (
         Long id,
 
         @Column("telegram_name")
-        String telegramName
+        String telegramName,
+
+        @Column("extra_info")
+        String extraInfo
 ) {}

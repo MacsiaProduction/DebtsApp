@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'ru.m_polukhin.debtsapp'
-version = '0.1.0'
+version = '0.6.0'
 
 idea {
     module {
@@ -38,6 +38,7 @@ dependencies {
     implementation 'org.liquibase:liquibase-core'
     implementation 'io.springfox:springfox-boot-starter:3.0.0'
     implementation 'org.passay:passay:1.6.4'
+    implementation 'io.github.cdimascio:java-dotenv:5.2.2'
 
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'

@@ -1,14 +1,17 @@
 package ru.m_polukhin.debtsapp.configs;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Data
 public class BotConfig {
-    @Value("${bot.name}")
+    public BotConfig() {
+        Dotenv dotenv = Dotenv.load();
+        this.token = dotenv.get("BOT_TOKEN");
+        this.botName = dotenv.get("BOT_NAME");
+    }
     String botName;
-    @Value("${bot.token}")
     String token;
 }

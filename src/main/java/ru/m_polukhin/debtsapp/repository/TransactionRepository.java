@@ -3,15 +3,17 @@ package ru.m_polukhin.debtsapp.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import ru.m_polukhin.debtsapp.models.Transaction;
+
+import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends CrudRepository<Transaction, Long> {
     Page<Transaction> findAllByChatIdAndSenderIdOrChatIdAndRecipientId(Long chatId, Long senderId, Long chatId2, Long recipientId, Pageable pageable);
-    Page<Transaction> findAllByChatIdAndSenderIdAndRecipientId(Long chatId, Long senderId, Long recipientId, Pageable pageable);
-    Page<Transaction> findAllBySenderIdAndRecipientId(Long senderId, Long recipientId, Pageable pageable);
     Page<Transaction> findAllBySenderIdOrRecipientId(Long senderId, Long ChatId, Pageable pageable);
+    Optional<Transaction> findFirstByChatIdAndSenderIdOrderByTimestampDesc(@Param("chatId") Long chatId, @Param("userId") Long userId);
     void deleteAllByChatId(Long chatId);
     // for testing purposes only
     void deleteAll();

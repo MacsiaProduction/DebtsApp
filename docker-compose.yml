@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   debts_bot_db:
-    image: postgres
+    image: postgres:16-alpine
     container_name: debts_bot_db
     restart: always
     environment:
@@ -13,6 +11,16 @@ services:
       - '5432:5432'
     volumes:
       - debts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U debtsbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   recipe:
     container_name: debts_bot
@@ -22,12 +30,18 @@ services:
     ports:
       - '8081:8081'
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot?sslmode=disable&connect_timeout=5
       - SPRING_DATASOURCE_USERNAME=debtsbot
       - SPRING_DATASOURCE_PASSWORD=debtsbot
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     depends_on:
-      - debts_bot_db
+      debts_bot_db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   debts_data:

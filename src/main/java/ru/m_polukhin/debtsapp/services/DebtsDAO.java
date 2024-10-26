@@ -41,28 +41,21 @@ public class DebtsDAO {
         return coverTransaction(transaction);
     }
 
+    public TransactionInfo deleteLastTransaction(Long chatId, Long userId) throws UserNotFoundException {
+        var transaction = transactionRepository.findFirstByChatIdAndSenderIdOrderByTimestampDesc(chatId, userId);
+        if (transaction.isPresent()) {
+            var trans = transaction.get();
+            transactionRepository.deleteById(trans.getId());
+            debtRepository.increaseDebt(trans.getRecipientId(), trans.getSenderId(), trans.getSum(), trans.getChatId());
+            return coverTransaction(trans);
+        }
+        return null;
+    }
+
     //todo update nickname
     public void addUser(Long userId, String username) {
         if(!userRepository.existsById(userId)) {
             userRepository.insertUser(userId, username);
-        }
-    }
-
-    public Page<TransactionInfo> findAllTransactionsFromTo(Long chatId, String sender, String recipient, Pageable pageable) throws UserNotFoundException {
-        var transactions = transactionRepository.findAllByChatIdAndSenderIdAndRecipientId(chatId, getIdByName(sender), getIdByName(recipient), pageable);
-        try {
-            return coverTransactions(transactions);
-        } catch (UserNotFoundUnchecked e) {
-            throw new UserNotFoundException(e.getMessage());
-        }
-    }
-
-    public Page<TransactionInfo> findAllTransactionsFromTo(String sender, String recipient, Pageable pageable) throws UserNotFoundException {
-        var transactions = transactionRepository.findAllBySenderIdAndRecipientId(getIdByName(sender), getIdByName(recipient), pageable);
-        try {
-            return coverTransactions(transactions);
-        } catch (UserNotFoundUnchecked e) {
-            throw new UserNotFoundException(e.getMessage());
         }
     }
 
@@ -119,8 +112,14 @@ public class DebtsDAO {
 
     public UserData findUserByName(String username) throws UserNotFoundException {
         var userOptional = userRepository.findByTelegramName(username);
-        if(userOptional.isEmpty()) throw new UserNotFoundException(username);
+        if (userOptional.isEmpty()) throw new UserNotFoundException(username);
         return userOptional.get();
+    }
+
+    public void updateUserExtraInfo(Long userId, String extraInfo) throws UserNotFoundException {
+        if (!userRepository.updateExtraInfo(userId, extraInfo)) {
+            throw new UserNotFoundException(userId.toString());
+        }
     }
 
     public void addActiveSession(ActiveSessionToken activeSessionToken) {
@@ -144,7 +143,7 @@ public class DebtsDAO {
         return token.get();
     }
 
-    public Long getIdByName(String username) throws UserNotFoundException {
+    private Long getIdByName(String username) throws UserNotFoundException {
         return findUserByName(username).id();
     }
 
