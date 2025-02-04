@@ -14,7 +14,7 @@ public class PayReminderService {
     private final TelegramService telegramService;
     private final DebtsDAO dao;
 
-    @Scheduled(fixedRate = 7, timeUnit = TimeUnit.DAYS, initialDelay = 7)
+    @Scheduled(fixedRate = 14, timeUnit = TimeUnit.DAYS, initialDelay = 7)
     public void sendRegularMessage() {
         var chats = dao.getAllChats();
         for (var chatId : chats) {

@@ -22,7 +22,7 @@ public class TelegramService extends DefaultAbsSender {
     }
 
     public void sendMessage(Long chatId, String text) {
-        sendMessage(chatId, null, text);
+        sendMessage(chatId, null, text, true);
     }
 
     public void sendMessage(Long chatId, Integer threadId, String text) {

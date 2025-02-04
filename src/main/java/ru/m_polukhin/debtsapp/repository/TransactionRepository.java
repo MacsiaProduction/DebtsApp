@@ -11,8 +11,8 @@ import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends CrudRepository<Transaction, Long> {
-    Page<Transaction> findAllByChatIdAndSenderIdOrChatIdAndRecipientId(Long chatId, Long senderId, Long chatId2, Long recipientId, Pageable pageable);
-    Page<Transaction> findAllBySenderIdOrRecipientId(Long senderId, Long ChatId, Pageable pageable);
+    Page<Transaction> findAllByChatIdAndSenderIdOrChatIdAndRecipientIdOrderByTimestampDesc(Long chatId, Long senderId, Long chatId2, Long recipientId, Pageable pageable);
+
     Optional<Transaction> findFirstByChatIdAndSenderIdOrderByTimestampDesc(@Param("chatId") Long chatId, @Param("userId") Long userId);
     void deleteAllByChatId(Long chatId);
     // for testing purposes only

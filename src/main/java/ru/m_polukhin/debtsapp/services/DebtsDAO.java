@@ -53,8 +53,12 @@ public class DebtsDAO {
         }
     }
 
+    public void updateUser(Long userId, String username) {
+        userRepository.updateNicknameById(userId, username);
+    }
+
     public Page<TransactionInfo> findAllTransactionsRelated(Long chatId, Long userId, Pageable pageable) throws UserNotFoundException {
-        Page<Transaction> transactions = transactionRepository.findAllByChatIdAndSenderIdOrChatIdAndRecipientId(chatId, userId, chatId, userId, pageable);
+        Page<Transaction> transactions = transactionRepository.findAllByChatIdAndSenderIdOrChatIdAndRecipientIdOrderByTimestampDesc(chatId, userId, chatId, userId, pageable);
         try {
             return coverTransactions(transactions);
         } catch (UserNotFoundUnchecked e) {
@@ -113,11 +117,6 @@ public class DebtsDAO {
 
     public List<Long> getAllChats() {
         return debtRepository.findAllUniqueChatIds();
-    }
-
-    public void deleteChatHistory(Long chatId) {
-        debtRepository.deleteAllByChatId(chatId);
-        transactionRepository.deleteAllByChatId(chatId);
     }
 
     private String getNameById(Long id) throws UserNotFoundException {

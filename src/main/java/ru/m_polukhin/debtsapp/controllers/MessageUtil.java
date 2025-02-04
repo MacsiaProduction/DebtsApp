@@ -18,9 +18,11 @@ public class MessageUtil {
     public static final String USER_INFO = "/get_info";
     public static final String ADD_USER_INFO = "/add_info";
     public static final String SUMMARY = "/summary";
+    public static final String UPDATE_NICKNAME = "/update_nickname";
 
     // Messages
     public static final String WELCOME_MESSAGE = "Well Cum to our club, *%s*!";
+    public static final String NICKNAME_UPDATE_MESSAGE = "Your nickname was updated, *%s*!";
     public static final String HELP_MESSAGE = """
             /add TgUsername {sum} {comment} - adds new transaction Me->Someone with value {sum}₽
             /add_many TgUsername1 TgUsername2 ... {sum} - adds many transactions
@@ -31,6 +33,7 @@ public class MessageUtil {
             /add_info - adds extra info
             /get_info TgUsername - gets extra info of target user
             /summary - entire chat's debts summary
+            /update_nickname - updates your nickname in the bot.
             """;
     public static final String NOT_RECOGNIZED_COMMAND = "Not recognized";
     public static final String WRONG_ARGUMENT_COUNT = "Wrong argument count";

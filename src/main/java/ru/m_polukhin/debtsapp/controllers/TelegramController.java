@@ -24,6 +24,7 @@ import static ru.m_polukhin.debtsapp.controllers.MessageUtil.*;
 //todo /edit_last {sum} {comment}
 //todo /stats
 //todo /profile TgUsername shows history debts, info
+//todo interactive pages in history
 
 @Controller
 public class TelegramController extends TelegramLongPollingBot {
@@ -64,6 +65,7 @@ public class TelegramController extends TelegramLongPollingBot {
                 case MessageUtil.USER_INFO -> getUserInfoCommand(chatId, threadId, messageSplit);
                 case MessageUtil.ADD_USER_INFO -> addUserInfoCommand(chatId, threadId, messageId, user.getId(), messageSplit);
                 case MessageUtil.SUMMARY -> summaryCommand(chatId, threadId, messageSplit);
+                case MessageUtil.UPDATE_NICKNAME -> updateNickNameCommand(chatId, threadId, user);
                 default -> unknownCommand(chatId, threadId);
             }
         } catch (Exception e) {
@@ -124,6 +126,13 @@ public class TelegramController extends TelegramLongPollingBot {
         helpCommand(chatId, threadId);
     }
 
+    private void updateNickNameCommand(Long chatId, Integer threadId, User user) {
+        String formattedText = String.format(MessageUtil.NICKNAME_UPDATE_MESSAGE, user.getUserName());
+        dao.updateUser(user.getId(), user.getUserName());
+        telegramService.sendMessage(chatId, threadId, formattedText, true);
+        helpCommand(chatId, threadId);
+    }
+
     private void addCommand(Long chatId, Integer threadId, Integer messageId, User user, String[] messageSplit) {
         try {
             if (messageSplit.length < 3) {
@@ -153,7 +162,10 @@ public class TelegramController extends TelegramLongPollingBot {
             List<String> recipients = new ArrayList<>();
             for (int i = 1; i < messageSplit.length - 1; i++) {
                 recipients.add(extractRecipient(messageSplit[i]));
+                var userData = dao.findUserByName(messageSplit[i]); //check that user exists
+                if (userData.id().equals(user.getId())) throw new UserNotFoundException("Me");
             }
+            // TODO if one fails rollback all
             Long sum = Calculator.evaluateExpression(messageSplit[messageSplit.length - 1]);
             for (var recipient : recipients) dao.addTransaction(chatId, user.getId(), recipient, sum, "");
             telegramService.markAsRead(chatId, messageId);
