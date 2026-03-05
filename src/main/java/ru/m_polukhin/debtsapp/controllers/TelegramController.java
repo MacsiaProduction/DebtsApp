@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-
 @Controller
 public class TelegramController extends TelegramLongPollingBot {
     private final DebtsDAO dao;
@@ -32,6 +31,7 @@ public class TelegramController extends TelegramLongPollingBot {
     private static final String HISTORY = "/history";
     private static final String HELP = "/help";
     private static final String DEBTS = "/debts";
+    private static final String LINK = "/link";
 
     @Autowired
     public TelegramController(DebtsDAO dao, TelegramService telegramService, SecurityService securityService, BotConfig config) {
@@ -50,151 +50,131 @@ public class TelegramController extends TelegramLongPollingBot {
         var chatId = update.getMessage().getChatId();
         var threadId = update.getMessage().getMessageThreadId();
         var messageId = update.getMessage().getMessageId();
-
         var user = update.getMessage().getFrom();
-        var username = user.getUserName();
         var messageSplit = message.split(" ");
         var command = messageSplit[0];
 
+        // Убрать упоминание бота (например, /start@BotName → /start)
+        int atIdx = command.indexOf('@');
+        if (atIdx > 0) command = command.substring(0, atIdx);
+
         switch (command) {
             case START -> {
-                var len = messageSplit.length;
-                if (len == 1) {
-                    startCommand(chatId, threadId, user);
-                } else {
-                    activateSession(chatId, threadId, user, messageSplit[1]);
-                }
+                if (messageSplit.length == 1) startCommand(chatId, threadId, user);
+                else activateSession(chatId, threadId, user, messageSplit[1]);
             }
+            case LINK -> linkCommand(chatId, threadId, user, messageSplit);
             case ADD -> addCommand(chatId, threadId, messageId, user, messageSplit);
             case HELP -> helpCommand(chatId, threadId);
-            case GET -> getCommand(chatId, threadId, username, messageSplit);
+            case GET -> getCommand(chatId, threadId, user, messageSplit);
             case HISTORY -> historyCommand(chatId, threadId, user, messageSplit);
-            case DEBTS -> debtsCommand(chatId, threadId, user.getId(), messageSplit);
+            case DEBTS -> debtsCommand(chatId, threadId, user, messageSplit);
             default -> unknownCommand(chatId, threadId);
         }
     }
 
-    private void historyCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
-        String text;
-        try {
-            PageRequest page;
-            if (messageSplit.length != 2) {
-                page = PageRequest.of(0, 20);
-            } else {
-                page = PageRequest.of(Integer.parseInt(messageSplit[1]), 20);
-            }
-            var res = dao.findAllTransactionsRelated(chatId, user.getId(), page);
-            List<String> res2 = new ArrayList<>();
-            res.forEach(t -> res2.add(t.toString()));
-            text = String.join("\n", res2);
-        } catch (UserNotFoundException e) {
-            text = "You aren't registered, try write /start";
-        } catch (NumberFormatException e) {
-            text = "Wrong format: " + e.getMessage();
-        }
-        telegramService.sendMessage(chatId, threadId, text);
+    private void startCommand(Long chatId, Integer threadId, User user) {
+        dao.addTelegramUser(user.getId(), user.getUserName());
+        telegramService.sendMessage(chatId, threadId,
+                String.format("Well Cum to our club, %s!\n", user.getUserName()));
+        helpCommand(chatId, threadId);
     }
 
-    private void startCommand(Long chatId, Integer threadId, User user) {
-        var text = """
-                Well Cum to our club, %s!
-                """;
-        String formattedText = String.format(text, user.getUserName());
-        dao.addUser(user.getId(), user.getUserName());
-        telegramService.sendMessage(chatId, threadId, formattedText);
-        helpCommand(chatId, threadId);
+    private void linkCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
+        if (messageSplit.length != 2) {
+            telegramService.sendMessage(chatId, threadId, "Usage: /link {token}");
+            return;
+        }
+        boolean linked = securityService.linkTelegramAccount(user.getId(), user.getUserName(), messageSplit[1]);
+        telegramService.sendMessage(chatId, threadId,
+                linked ? "Telegram account linked successfully!" : "Invalid or expired link token.");
     }
 
     private void addCommand(Long chatId, Integer threadId, Integer messageId, User user, String[] messageSplit) {
         try {
-            if (messageSplit.length < 3) {
-                throw new ParseException("Wrong argument count");
-            }
-
+            if (messageSplit.length < 3) throw new ParseException("Wrong argument count");
+            Long userId = dao.getIdByTelegramId(user.getId());
             String recipient = messageSplit[1].startsWith("@") ? messageSplit[1].substring(1) : messageSplit[1];
-            String comment = messageSplit.length > 3 ? concatArrayExceptFirstThree(messageSplit) : "";
-
+            String comment = messageSplit.length > 3
+                    ? String.join(" ", Arrays.copyOfRange(messageSplit, 3, messageSplit.length)) : "";
             Long sum = Calculator.evaluateExpression(messageSplit[2]);
-            var transaction = dao.addTransaction(chatId, user.getId(), recipient, sum, comment);
+            dao.addTransaction(chatId, userId, recipient, sum, comment);
             telegramService.markAsRead(chatId, messageId);
-        } catch (NumberFormatException | ParseException e) {
+        } catch (ParseException e) {
             telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
         } catch (UserNotFoundException e) {
             telegramService.sendMessage(chatId, threadId, "User " + e.getMessage() + " not found");
         }
     }
 
-    private void getCommand(Long chatId, Integer threadId, String username, String[] messageSplit) {
-        String text;
+    private void getCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
         try {
-            if (messageSplit.length != 2) {
-                throw new ParseException("Wrong argument count");
-            }
-
+            if (messageSplit.length != 2) throw new ParseException("Wrong argument count");
             String recipient = messageSplit[1].startsWith("@") ? messageSplit[1].substring(1) : messageSplit[1];
-            var debt = dao.getDebt(chatId, username, recipient);
-            text = debt.toString();
+            telegramService.sendMessage(chatId, threadId,
+                    dao.getDebt(chatId, user.getUserName(), recipient).toString());
         } catch (ParseException e) {
-            text = "Wrong format: " + e.getMessage();
+            telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
         } catch (UserNotFoundException e) {
-            text = "User with name " + e.getMessage() + " isn't registered";
+            telegramService.sendMessage(chatId, threadId, "User " + e.getMessage() + " not registered");
         }
-        telegramService.sendMessage(chatId, threadId, text);
     }
 
-    private void debtsCommand(Long chatId, Integer threadId, Long userId, String[] messageSplit) {
+    private void historyCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
         try {
-            int pageNumber = 0;
-            if (messageSplit.length == 2) {
-                pageNumber = Integer.parseInt(messageSplit[1]);
-            }
-            PageRequest page = PageRequest.of(pageNumber, 20);
-            var res = dao.findAllDebtsRelated(chatId, userId, page);
-            String text = String.join("\n", res.map(Object::toString).toList());
-            telegramService.sendMessage(chatId, threadId, text);
+            int pageNum = messageSplit.length == 2 ? Integer.parseInt(messageSplit[1]) : 0;
+            Long userId = dao.getIdByTelegramId(user.getId());
+            var res = dao.findAllTransactionsRelated(chatId, userId, PageRequest.of(pageNum, 20));
+            List<String> lines = new ArrayList<>();
+            res.forEach(t -> lines.add(t.toString()));
+            telegramService.sendMessage(chatId, threadId, String.join("\n", lines));
         } catch (UserNotFoundException e) {
-            telegramService.sendMessage(chatId, threadId, "User with name " + e.getMessage() + " isn't registered");
+            telegramService.sendMessage(chatId, threadId, "You aren't registered, try /start");
+        } catch (NumberFormatException e) {
+            telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
+        }
+    }
+
+    private void debtsCommand(Long chatId, Integer threadId, User user, String[] messageSplit) {
+        try {
+            int pageNum = messageSplit.length == 2 ? Integer.parseInt(messageSplit[1]) : 0;
+            Long userId = dao.getIdByTelegramId(user.getId());
+            var res = dao.findAllDebtsRelated(chatId, userId, PageRequest.of(pageNum, 20));
+            telegramService.sendMessage(chatId, threadId,
+                    String.join("\n", res.map(Object::toString).toList()));
+        } catch (UserNotFoundException e) {
+            telegramService.sendMessage(chatId, threadId, "User " + e.getMessage() + " not registered");
         } catch (NumberFormatException e) {
             telegramService.sendMessage(chatId, threadId, "Wrong format: " + e.getMessage());
         }
     }
 
     private void helpCommand(Long chatId, Integer threadId) {
-        var text = """
-                /add TgUsername {sum} {comment} - adds new transaction Me->Someone with value {sum}₽
-                /get TgUsername - checks size of debt between you and him
-                /history {page} (0 by default) - related transactions
-                /debts {page} (0 by default) - related debts
-                """;
-        telegramService.sendMessage(chatId, threadId, text);
+        telegramService.sendMessage(chatId, threadId, """
+                /add @Username {sum} {comment} - add transaction Me→Someone
+                /get @Username - check debt between you and them
+                /history {page} - related transactions (page 0 by default)
+                /debts {page} - related debts (page 0 by default)
+                /link {token} - link this Telegram account to a web account
+                """);
     }
 
     private void unknownCommand(Long chatId, Integer threadId) {
-        var text = "Not recognized";
-        telegramService.sendMessage(chatId, threadId, text);
+        telegramService.sendMessage(chatId, threadId, "Unknown command. Try /help");
     }
 
-    private void activateSession(Long chatId, Integer threadId, User user, String message) {
-        securityService.activateSessionToken(user.getId(), message);
-        String text = """
-                Your session was authenticated!
-                You have 1 minute ;)
-                """;
-        telegramService.sendMessage(chatId, threadId, text);
+    private void activateSession(Long chatId, Integer threadId, User user, String token) {
+        try {
+            Long userId = dao.getIdByTelegramId(user.getId());
+            securityService.activateSessionToken(userId, token);
+            telegramService.sendMessage(chatId, threadId, "Session authenticated! You have 1 minute ;)");
+        } catch (UserNotFoundException e) {
+            telegramService.sendMessage(chatId, threadId, "You aren't registered, try /start");
+        }
     }
 
     @Override
     public String getBotUsername() {
         return botName;
     }
-
-    private String concatArrayExceptFirstThree(String[] words) {
-        if (words.length > 3) {
-            return String.join(" ", Arrays.copyOfRange(words, 3, words.length));
-        } else {
-            return "";
-        }
-    }
-
-
 }

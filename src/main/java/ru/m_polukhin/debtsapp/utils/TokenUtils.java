@@ -29,8 +29,8 @@ public class TokenUtils {
     }
     private SecretKey generateKey() {
         try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256"); // Use HmacSHA256
-            keyGenerator.init(256); // Initialize with a key size of 256 bits
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256");
+            keyGenerator.init(256); // 256 бит
             return keyGenerator.generateKey();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("No such algorithm", e);
@@ -44,7 +44,7 @@ public class TokenUtils {
                 .subject(subject)
                 .issuedAt(issuedDate)
                 .expiration(expiredDate)
-                .signWith(secretKey) // Update the signWith method
+                .signWith(secretKey)
                 .compact();
     }
 

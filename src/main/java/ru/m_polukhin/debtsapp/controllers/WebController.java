@@ -37,7 +37,7 @@ public class WebController {
     })
     public Page<TransactionInfo> findAllTransactionsRelated(
             @NotNull Principal principal,
-            @Positive @RequestParam(defaultValue = "0") int page,
+            @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         try {
             Long userId = Long.valueOf(principal.getName());
@@ -57,7 +57,7 @@ public class WebController {
     public Page<TransactionInfo> findAllTransactionsRelated(
             @NotNull Principal principal,
             @Positive @RequestParam Long chatId,
-            @Positive @RequestParam(defaultValue = "0") int page,
+            @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         try {
             Long userId = Long.valueOf(principal.getName());
@@ -78,7 +78,7 @@ public class WebController {
             @NotNull Principal principal,
             @Size(max = 50) @Parameter(description = "Sender") @RequestParam String sender,
             @Size(max = 50) @Parameter(description = "Recipient") @RequestParam String recipient,
-            @Positive @RequestParam(defaultValue = "0") int page,
+            @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
         try {
@@ -100,7 +100,7 @@ public class WebController {
             @Positive @RequestParam Long chatId,
             @Parameter(description = "Sender") @Size(max = 50) @RequestParam String sender,
             @Parameter(description = "Recipient") @Size(max = 50) @RequestParam String recipient,
-            @Positive @RequestParam(defaultValue = "0") int page,
+            @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
         try {
@@ -159,7 +159,7 @@ public class WebController {
     })
     public Page<DebtInfo> findAllDebtsRelated(
             @NotNull Principal principal,
-            @Positive @RequestParam(defaultValue = "0") int page,
+            @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         try {
             return dao.findAllDebtsRelated(Long.valueOf(principal.getName()), PageRequest.of(page, size));

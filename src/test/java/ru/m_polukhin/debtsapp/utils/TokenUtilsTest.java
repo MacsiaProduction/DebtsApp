@@ -10,6 +10,7 @@ class TokenUtilsTest {
 
     @Autowired
     TokenUtils tokenUtils;
+
     @Test
     public void testGenerateJwtToken() {
         String expected = "testSubject";

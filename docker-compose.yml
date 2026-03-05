@@ -2,7 +2,7 @@ version: "3"
 
 services:
   debts_bot_db:
-    image: postgres
+    image: postgres:15-alpine
     container_name: debts_bot_db
     restart: always
     environment:
@@ -14,7 +14,19 @@ services:
     volumes:
       - debts_data:/var/lib/postgresql/data
 
-  recipe:
+  debts_neo4j:
+    image: neo4j:5-community
+    container_name: debts_neo4j
+    restart: always
+    environment:
+      - NEO4J_AUTH=neo4j/debtsbot123
+    ports:
+      - '7474:7474'
+      - '7687:7687'
+    volumes:
+      - neo4j_data:/data
+
+  debts_bot:
     container_name: debts_bot
     build:
       context: .
@@ -25,10 +37,15 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot
       - SPRING_DATASOURCE_USERNAME=debtsbot
       - SPRING_DATASOURCE_PASSWORD=debtsbot
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_NEO4J_URI=bolt://debts_neo4j:7687
+      - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
+      - SPRING_NEO4J_AUTHENTICATION_PASSWORD=debtsbot123
     depends_on:
       - debts_bot_db
+      - debts_neo4j
 
 volumes:
   debts_data:
+    external: false
+  neo4j_data:
     external: false

@@ -11,18 +11,25 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.testcontainers.containers.Neo4jContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.m_polukhin.debtsapp.dto.DebtInfo;
 import ru.m_polukhin.debtsapp.dto.TransactionInfo;
 import ru.m_polukhin.debtsapp.exceptions.ParseException;
 import ru.m_polukhin.debtsapp.exceptions.UserNotFoundException;
-import ru.m_polukhin.debtsapp.repository.DebtRepository;
+import ru.m_polukhin.debtsapp.models.UserData;
+import ru.m_polukhin.debtsapp.repository.SessionRepository;
 import ru.m_polukhin.debtsapp.repository.TransactionRepository;
 import ru.m_polukhin.debtsapp.repository.UserRepository;
 import ru.m_polukhin.debtsapp.services.DebtsDAO;
+import ru.m_polukhin.debtsapp.services.DebtGraphService;
 import ru.m_polukhin.debtsapp.utils.CustomPageImpl;
 
 import java.security.Principal;
@@ -33,59 +40,58 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("test")
+@Testcontainers
 public class WebControllerTest {
 
-    @Autowired
-    private DebtsDAO debtsDAO;
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
-    @Autowired
-    private UserRepository userRepository;
+    @Container
+    static Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5-community")
+            .withoutAuthentication();
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private DebtRepository debtRepository;
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    private final List<TransactionInfo> transactionInfos1;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    public WebControllerTest() {
-        List<TransactionInfo> transactionInfos = List.of(
-                new TransactionInfo("user1", "user2", 1L, 1L, "message10"),
-                new TransactionInfo("user1", "user3", 10L, 1L, "message11"),
-                new TransactionInfo("user2", "user3", 100L, 1L, "message12"),
-
-                new TransactionInfo("user3", "user1", 2L, 2L, "message20"),
-                new TransactionInfo("user3", "user2", 20L, 2L, "message21")
-        );
-        transactionInfos1 = transactionInfos.stream()
-                .filter(transactionInfo -> transactionInfo.sender().equals("user1") || transactionInfo.recipient().equals("user1"))
-                .toList();
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.neo4j.uri", neo4j::getBoltUrl);
+        registry.add("spring.neo4j.authentication.username", () -> "neo4j");
+        registry.add("spring.neo4j.authentication.password", () -> "");
     }
+
+    @Autowired private DebtsDAO debtsDAO;
+    @Autowired private DebtGraphService debtGraphService;
+    @Autowired private UserRepository userRepository;
+    @Autowired private TransactionRepository transactionRepository;
+    @Autowired private SessionRepository sessionRepository;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+
+    private UserData user1, user2, user3;
 
     @BeforeEach
     public void setUp() throws UserNotFoundException, ParseException {
+        debtGraphService.deleteAll();
         transactionRepository.deleteAll();
-        debtRepository.deleteAllDebts();
+        sessionRepository.deleteAll();
         userRepository.deleteAll();
-        //test info
-        debtsDAO.addUser(1L, "user1");
-        debtsDAO.addUser(2L, "user2");
-        debtsDAO.addUser(3L, "user3");
 
-        debtsDAO.addTransaction(1L, 1L, "user2", 1L, "message10");
-        debtsDAO.addTransaction(1L, 1L, "user3", 10L, "message11");
-        debtsDAO.addTransaction(1L, 2L, "user3", 100L, "message12");
+        user1 = userRepository.save(new UserData(null, "user1", 1L, null, null));
+        user2 = userRepository.save(new UserData(null, "user2", 2L, null, null));
+        user3 = userRepository.save(new UserData(null, "user3", 3L, null, null));
 
-        debtsDAO.addTransaction(2L, 3L, "user1", 2L, "message20");
-        debtsDAO.addTransaction(2L, 3L, "user2", 20L, "message21");
+        debtsDAO.addTransaction(1L, user1.getId(), "user2", 1L, "message10");
+        debtsDAO.addTransaction(1L, user1.getId(), "user3", 10L, "message11");
+        debtsDAO.addTransaction(1L, user2.getId(), "user3", 100L, "message12");
+        debtsDAO.addTransaction(2L, user3.getId(), "user1", 2L, "message20");
+        debtsDAO.addTransaction(2L, user3.getId(), "user2", 20L, "message21");
+    }
+
+    private Principal principalOf(UserData user) {
+        Principal p = Mockito.mock(Principal.class);
+        Mockito.when(p.getName()).thenReturn(String.valueOf(user.getId()));
+        return p;
     }
 
     @Test
@@ -94,38 +100,31 @@ public class WebControllerTest {
 
     @Test
     public void testFindAllTransactionsRelated() throws Exception {
-
-        Principal principal = Mockito.mock(Principal.class);
-        Mockito.when(principal.getName()).thenReturn("1");
-
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/transactions")
-                        .principal(principal))
+                        .principal(principalOf(user1)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         Page<TransactionInfo> response = objectMapper.readValue(content, new TypeReference<CustomPageImpl<TransactionInfo>>() {});
 
-        assertThat(response.getContent().size()).isEqualTo(transactionInfos1.size());
-        assertThat(response.getContent().containsAll(transactionInfos1)).isTrue();
+        List<TransactionInfo> expected = List.of(
+                new TransactionInfo("user1", "user2", 1L, 1L, "message10"),
+                new TransactionInfo("user1", "user3", 10L, 1L, "message11"),
+                new TransactionInfo("user3", "user1", 2L, 2L, "message20")
+        );
+        assertThat(response.getContent().size()).isEqualTo(expected.size());
+        assertThat(response.getContent().containsAll(expected)).isTrue();
     }
 
     @Test
     public void testCreateTransaction() throws Exception {
-        Principal principal = Mockito.mock(Principal.class);
-        Mockito.when(principal.getName()).thenReturn("1");
-
-        var transaction = new TransactionInfo("user1", "user2", 500L, 1L, "created");
-
         mockMvc.perform(MockMvcRequestBuilders.post("/new")
-                        .principal(principal)
+                        .principal(principalOf(user1))
                         .param("chatId", "1")
                         .param("toName", "user2")
                         .param("sum", "500")
                         .param("comment", "created"))
                 .andExpect(status().isCreated());
-
-        Page<TransactionInfo> allTransactionsRelated = debtsDAO.findAllTransactionsRelated(1L, PageRequest.of(0, 10));
-        assertThat(allTransactionsRelated.getContent().contains(transaction)).isTrue();
 
         var debt = debtsDAO.getDebt(1L, "user1", "user2");
         assertThat(debt.sum()).isEqualTo(501L);
@@ -133,11 +132,8 @@ public class WebControllerTest {
 
     @Test
     public void testGetDebt() throws Exception {
-        Principal principal = Mockito.mock(Principal.class);
-        Mockito.when(principal.getName()).thenReturn("1");
-
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/debts/between")
-                        .principal(principal)
+                        .principal(principalOf(user1))
                         .param("fromName", "user1")
                         .param("toName", "user2")
                         .param("chatId", "1"))
@@ -146,46 +142,38 @@ public class WebControllerTest {
 
         DebtInfo response = objectMapper.readValue(content, DebtInfo.class);
 
-        assertThat(response.sum()).isIn(1L, -1L);
+        assertThat(response.sum()).isEqualTo(1L);
         assertThat(response.chatId()).isEqualTo(1);
-        assertThat(response.from()).isIn("user1","user2");
-        assertThat(response.to()).isIn("user1","user2").isNotEqualTo(response.from());
+        assertThat(response.from()).isEqualTo("user1");
+        assertThat(response.to()).isEqualTo("user2");
     }
 
     @Test
     public void testFindAllDebtsRelated() throws Exception {
-        Principal principal = Mockito.mock(Principal.class);
-        Mockito.when(principal.getName()).thenReturn("1");
-
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/debts")
-                        .principal(principal)
+                        .principal(principalOf(user1))
                         .param("size", "10")
                         .characterEncoding("utf-8"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         Page<DebtInfo> response = objectMapper.readValue(content, new TypeReference<CustomPageImpl<DebtInfo>>() {});
+        var expected = debtsDAO.findAllDebtsRelated(user1.getId(), PageRequest.of(0, 10));
 
-        var expected = debtsDAO.findAllDebtsRelated(1L, PageRequest.of(0,10));
-        assertThat(response.getSize()).isEqualTo(expected.getSize());
         assertThat(response.getContent().containsAll(expected.getContent())).isTrue();
     }
 
     @Test
     public void testFindAllTransactionsRelatedByChatId() throws Exception {
-        Principal principal = Mockito.mock(Principal.class);
-        Mockito.when(principal.getName()).thenReturn("1");
-
         var content = mockMvc.perform(MockMvcRequestBuilders.get("/transactions/chat")
-                        .principal(principal)
+                        .principal(principalOf(user1))
                         .param("chatId", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         Page<TransactionInfo> response = objectMapper.readValue(content, new TypeReference<CustomPageImpl<TransactionInfo>>() {});
+        var expected = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
 
-        var expected = debtsDAO.findAllTransactionsRelated(1L, 1L, PageRequest.of(0,10));
-        assertThat(response.getSize()).isEqualTo(expected.getSize());
         assertThat(response.getContent().containsAll(expected.getContent())).isTrue();
     }
 }

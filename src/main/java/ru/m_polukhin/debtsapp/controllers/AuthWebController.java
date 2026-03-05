@@ -1,51 +1,56 @@
 package ru.m_polukhin.debtsapp.controllers;
 
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import ru.m_polukhin.debtsapp.dto.RegisterDTO;
 import ru.m_polukhin.debtsapp.services.SecurityService;
 
+import java.security.Principal;
+
 @RestController
+@RequestMapping
 @RequiredArgsConstructor
 public class AuthWebController {
     private final SecurityService securityService;
 
-    @Operation(summary = "Login page", description = "Returns jwt token")
+    // Регистрация через веб (логин + пароль)
+    @PostMapping("/auth/register")
+    public ResponseEntity<?> register(@RequestBody RegisterDTO dto) {
+        return securityService.registerWeb(dto.username(), dto.password());
+    }
+
+    // Вход через веб → JWT
+    @PostMapping("/auth/login")
+    public ResponseEntity<?> loginWeb(@RequestBody RegisterDTO dto) {
+        return securityService.loginWeb(dto.username(), dto.password());
+    }
+
+    // Вход через Telegram-сессионный токен → JWT
     @PostMapping("/login")
-    @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "User login successfully"),
-            @ApiResponse(code = 400, message = "Bad credentials")
-    })
-    @PreAuthorize("permitAll")
     public ResponseEntity<?> authenticateUser(@RequestBody String sessionToken) {
         return securityService.authenticateUser(sessionToken);
     }
 
-    @Operation(summary = "Get session token for access via telegram")
+    // Получить одноразовый сессионный токен для входа через Telegram
     @GetMapping("/session")
-    @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Get token successfully"),
-    })
-    @PreAuthorize("permitAll")
     public ResponseEntity<String> getUserSession() {
         return ResponseEntity.ok(securityService.generateSessionToken());
     }
 
-    @Operation(summary = "Page for the case that access was denied")
+    // Получить токен привязки Telegram к веб-аккаунту (требует JWT)
+    @GetMapping("/auth/link-token")
+    public ResponseEntity<String> getLinkToken(Principal principal) {
+        if (principal == null) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+        String token = securityService.generateLinkToken(Long.parseLong(principal.getName()));
+        return ResponseEntity.ok(token);
+    }
+
     @GetMapping("/access-denied")
-    @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Access was denied"),
-    })
-    @PreAuthorize("permitAll")
     public ResponseEntity<String> accessDenied() {
-        return new ResponseEntity<>(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 }
