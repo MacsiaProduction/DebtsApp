@@ -29,7 +29,7 @@ services:
   debts_bot:
     container_name: debts_bot
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - '8081:8081'

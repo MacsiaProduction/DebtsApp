@@ -108,7 +108,7 @@ public class SecurityService {
                 "SELECT user_id FROM link_tokens WHERE token = ? AND expires_at > NOW()", linkToken);
         if (rows.isEmpty()) return false;
 
-        Long userId = ((Number) rows.get(0).get("user_id")).longValue();
+        Long userId = ((Number) rows.getFirst().get("user_id")).longValue();
         jdbcTemplate.update(
                 "UPDATE users SET telegram_id = ?, telegram_name = ? WHERE id = ?",
                 telegramId, telegramName, userId);

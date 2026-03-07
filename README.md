@@ -1,17 +1,84 @@
-# Debt Calculation Network API
+# Debt Calculation Network
 
-The Debt Calculation Network API is a Spring-based REST service that facilitates transaction management and debt calculation among users. It leverages Spring JDBC, Spring Security, and PostgreSQL as the underlying technologies.
+A monorepo application for transaction management and debt calculation among users. The project consists of a Spring-based REST API backend and a frontend application.
+
+## Project Structure
+
+```
+.
+├── backend/          # Spring Boot REST API
+├── frontend/         # Frontend application (to be implemented)
+└── docker-compose.yml # Docker orchestration
+```
 
 ## Table of Contents
 - [Getting Started](#getting-started)
+- [Backend](#backend)
+- [Frontend](#frontend)
 - [Authentication](#authentication)
 - [REST Endpoints](#rest-endpoints)
 - [Telegram Bot Integration](#telegram-bot-integration)
 
 ## Getting Started
+
+### Using Docker Compose (Recommended)
 1. Clone the project from the repository.
-2. Set up your PostgreSQL database and update the database configuration in the `application.properties` file.
-3. Build and run the project using Maven or your preferred IDE.
+2. Run `docker-compose up` from the root directory.
+3. The backend will be available at `http://localhost:8081`.
+
+### Manual Setup
+1. Set up PostgreSQL and Neo4j databases.
+2. Navigate to the `backend/` directory.
+3. Update the database configuration in `src/main/resources/application.properties`.
+4. Build and run the project using Gradle or your preferred IDE.
+
+### Quick Commands (Using Makefile)
+
+From the root directory, you can use these commands:
+
+```bash
+# Backend
+make build-backend    # Build the backend application
+make test-backend     # Run backend tests
+make run-backend      # Run the backend application
+make clean-backend    # Clean backend build artifacts
+
+# Docker
+make docker-up        # Start all services with Docker Compose
+make docker-down      # Stop all services
+
+# Help
+make help            # Show all available commands
+```
+
+Alternatively, you can work directly in the subdirectories:
+
+```bash
+# Backend
+cd backend
+./gradlew build
+./gradlew test
+./gradlew bootRun
+```
+
+## Backend
+
+The backend is a Spring-based REST service that leverages Spring JDBC, Spring Security, PostgreSQL, and Neo4j.
+
+### Technologies
+- Spring Boot
+- Spring Security
+- PostgreSQL
+- Neo4j
+- Liquibase for database migrations
+
+For more details, see the backend directory.
+
+## Frontend
+
+The frontend directory is ready for your frontend framework of choice (React, Vue, Angular, etc.).
+
+For more details, see the frontend directory.
 
 ## Authentication
 Certain REST endpoints require user authentication using Spring Security. Valid credentials must be provided to access these endpoints. To authenticate, use the `/login` endpoint and provide a valid username and password in the request body.
