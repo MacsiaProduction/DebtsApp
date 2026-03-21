@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -18,7 +17,6 @@ import ru.m_polukhin.debtsapp.services.UserDetailsServiceImpl;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(securedEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -51,20 +49,16 @@ public class SecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((authorizeHttpRequests) ->
                         authorizeHttpRequests
-                                .requestMatchers("/session", "/login", "/auth/register", "/auth/login").permitAll()
+                                .requestMatchers("/session", "/login", "/auth/register", "/auth/login", "/error").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement((sessionManagement) ->
                         sessionManagement
-                                .sessionConcurrency((sessionConcurrency) ->
-                                        sessionConcurrency
-                                                .maximumSessions(1)
-                                                .expiredUrl("/login?expired")
-                                )
-                                .sessionCreationPolicy((SessionCreationPolicy.STATELESS))
+                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .exceptionHandling((exceptionHandling) ->
                         exceptionHandling
+                                .authenticationEntryPoint((req, res, ex) -> res.sendError(401, "Unauthorized"))
                                 .accessDeniedPage("/access-denied")
                 )
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);

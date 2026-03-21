@@ -38,12 +38,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
 
     implementation 'org.springframework.boot:spring-boot-starter-hateoas'
-    implementation 'org.springframework.boot:spring-boot-starter-security:3.1.5'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.telegram:telegrambots-spring-boot-starter:6.9.7.1'
 
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.liquibase:liquibase-core'
-    implementation 'io.springfox:springfox-boot-starter:3.0.0'
     implementation 'net.objecthunter:exp4j:0.4.8'
 
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'

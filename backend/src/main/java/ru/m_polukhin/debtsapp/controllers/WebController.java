@@ -1,9 +1,5 @@
 package ru.m_polukhin.debtsapp.controllers;
 
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,13 +24,7 @@ import java.security.Principal;
 public class WebController {
     private final DebtsDAO dao;
 
-    @Operation(summary = "Returns page of all transactions related to {user}")
     @GetMapping("transactions")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public Page<TransactionInfo> findAllTransactionsRelated(
             @NotNull Principal principal,
             @Min(0) @RequestParam(defaultValue = "0") int page,
@@ -47,13 +37,7 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Returns page of all transactions related to {user}")
     @GetMapping("transactions/chat")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public Page<TransactionInfo> findAllTransactionsRelated(
             @NotNull Principal principal,
             @Positive @RequestParam Long chatId,
@@ -67,17 +51,11 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Returns page of all transactions from sender to recipient")
     @GetMapping("transactions/between")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public Page<TransactionInfo> findAllTransactionsFromTo(
             @NotNull Principal principal,
-            @Size(max = 50) @Parameter(description = "Sender") @RequestParam String sender,
-            @Size(max = 50) @Parameter(description = "Recipient") @RequestParam String recipient,
+            @Size(max = 50) @RequestParam String sender,
+            @Size(max = 50) @RequestParam String recipient,
             @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
@@ -88,18 +66,12 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Returns page of all transactions from sender to recipient")
     @GetMapping("transactions/between/chat")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public Page<TransactionInfo> findAllTransactionsFromTo(
             @NotNull Principal principal,
             @Positive @RequestParam Long chatId,
-            @Parameter(description = "Sender") @Size(max = 50) @RequestParam String sender,
-            @Parameter(description = "Recipient") @Size(max = 50) @RequestParam String recipient,
+            @Size(max = 50) @RequestParam String sender,
+            @Size(max = 50) @RequestParam String recipient,
             @Min(0) @RequestParam(defaultValue = "0") int page,
             @Positive @Max(100) @RequestParam(defaultValue = "10") int size) {
         validateTwo(principal, sender, recipient);
@@ -110,13 +82,7 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Create a new transaction")
     @PostMapping("new")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public ResponseEntity<String> createTransaction(@NotNull Principal principal,
                                                     @Positive @RequestParam Long chatId,
                                                     @Size(max = 50) @NotBlank @RequestParam String toName,
@@ -130,18 +96,12 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Returns debt between {fromName} and {toName}")
     @GetMapping("debts/between")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public DebtInfo getDebt(
             @NotNull Principal principal,
             @Positive @RequestParam Long chatId,
-            @Size(max = 50) @Parameter(description = "Creditor's name") @RequestParam String fromName,
-            @Size(max = 50) @Parameter(description = "Debtor's name") @RequestParam String toName) {
+            @Size(max = 50) @RequestParam String fromName,
+            @Size(max = 50) @RequestParam String toName) {
         validateTwo(principal, fromName, toName);
         try {
             return dao.getDebt(chatId, fromName, toName);
@@ -150,13 +110,7 @@ public class WebController {
         }
     }
 
-    @Operation(summary = "Returns all debts related to {name}")
     @GetMapping("debts")
-    @ApiResponses(value = {
-            @ApiResponse(code = 201, message = "Transaction created successfully"),
-            @ApiResponse(code = 400, message = "Bad request"),
-            @ApiResponse(code = 401, message = "Only authorized users allowed")
-    })
     public Page<DebtInfo> findAllDebtsRelated(
             @NotNull Principal principal,
             @Min(0) @RequestParam(defaultValue = "0") int page,
@@ -168,7 +122,7 @@ public class WebController {
         }
     }
 
-    private void validateTwo(Principal principal, @RequestParam @Parameter(description = "Creditor's name") String fromName, @RequestParam @Parameter(description = "Debtor's name") String toName) {
+    private void validateTwo(Principal principal, String fromName, String toName) {
         try {
             long name = Long.parseLong(principal.getName());
             var user1 = dao.getIdByName(fromName);

@@ -1,8 +1,7 @@
 package ru.m_polukhin.debtsapp.configs;
 
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.SignatureException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -33,10 +33,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             String jwt = authHeader.substring(7);
             try {
                 userId = tokenUtils.getSubject(jwt);
-            } catch (ExpiredJwtException e) {
-                log.debug("Token lifetime expired");
-            } catch (SignatureException e) {
-                log.debug("Wrong signature");
+            } catch (JwtException e) {
+                log.debug("Invalid JWT: {}", e.getMessage());
             }
         }
         if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -45,7 +43,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     null,
                     Collections.singleton(new SimpleGrantedAuthority("USER"))
             );
-            SecurityContextHolder.getContext().setAuthentication(token);
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(token);
+            SecurityContextHolder.setContext(context);
         }
         filterChain.doFilter(request, response);
     }

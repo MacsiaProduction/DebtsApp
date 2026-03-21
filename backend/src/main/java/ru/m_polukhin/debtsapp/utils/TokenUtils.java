@@ -51,7 +51,6 @@ public class TokenUtils {
     public String getSubject(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
-                .decryptWith(secretKey)
                 .build().parseSignedClaims(token).getPayload().getSubject();
     }
 
