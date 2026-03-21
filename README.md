@@ -24,7 +24,7 @@ A monorepo application for transaction management and debt calculation among use
 ### Using Docker Compose (Recommended)
 1. Clone the project from the repository.
 2. Run `docker-compose up` from the root directory.
-3. The backend will be available at `http://localhost:8081`.
+3. The backend will be available at `http://localhost:8080`.
 
 ### Manual Setup
 1. Set up PostgreSQL and Neo4j databases.

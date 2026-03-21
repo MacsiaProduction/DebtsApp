@@ -1,7 +1,91 @@
-# Frontend
+# Frontend – DebtsApp Web UI
 
-This directory is ready for your frontend application.
+React-приложение для работы с backend-сервисом расчёта долгов: авторизация, просмотр транзакций и долгов, создание новых транзакций и привязка Telegram-аккаунта.
 
-## Getting Started
+## Технологии
 
-Add your frontend framework here (React, Vue, Angular, etc.)
+- **Фреймворк**: React (Create React App)
+- **UI-библиотека**: React-Bootstrap + Bootstrap 5
+- **Роутинг**: React Router
+- **Тесты**: Jest + React Testing Library
+
+## Предварительные требования
+
+- Node.js 18+
+- npm или yarn
+- Запущенный backend на `http://localhost:8080` (см. `backend/README.md`), либо соответствующий `proxy` в `package.json`.
+
+## Установка и запуск
+
+Выполните команды из директории `frontend`:
+
+```bash
+# Установка зависимостей
+npm install
+
+# Запуск dev-сервера
+npm start
+
+# Сборка production-версии
+npm run build
+
+# Запуск тестов
+npm test
+```
+
+По умолчанию приложение будет доступно по адресу `http://localhost:3000/` и проксировать запросы на backend по `http://localhost:8080/` (см. поле `proxy` в `package.json`).
+
+## Основные возможности UI
+
+- **Авторизация и регистрация**
+  - Регистрация веб-пользователя (логин/пароль).
+  - Вход по логину и паролю (`/auth/login`).
+  - Вход по одноразовому сессионному токену (`/session` + `/login`) для интеграции с Telegram-ботом.
+  - Хранение JWT в `localStorage` и автоматическая подстановка заголовка `Authorization`.
+
+- **Транзакции**
+  - Просмотр всех транзакций, связанных с текущим пользователем.
+  - Фильтрация:
+    - по чату (`/transactions/chat`),
+    - между двумя пользователями (`/transactions/between`),
+    - между двумя пользователями в конкретном чате (`/transactions/between/chat`).
+  - Создание новой транзакции (`/new`): указание `chatId`, получателя (`toName`), суммы и комментария.
+
+- **Долги**
+  - Просмотр всех долгов, связанных с текущим пользователем (`/debts`).
+  - Просмотр долга между двумя пользователями в чате (`/debts/between`).
+
+- **Привязка Telegram**
+  - Получение токена привязки (`/auth/link-token`) на странице профиля и использование его в Telegram-боте.
+
+## Структура проекта
+
+```text
+src/
+├── components/
+│   └── NavBar.js           # Верхнее меню навигации
+├── pages/
+│   ├── Login.js            # Вход, регистрация, работа с сессионными токенами
+│   ├── Transactions.js     # Список транзакций и фильтры
+│   ├── Debts.js            # Список долгов и поиск долга между двумя пользователями
+│   ├── NewTransaction.js   # Форма создания транзакции
+│   └── Profile.js          # Получение токена привязки Telegram
+├── services/
+│   └── api.js              # Обёртка над REST API backend (JWT, запросы)
+├── App.js                  # Маршруты и приватные страницы
+├── index.js                # Точка входа React
+└── setupTests.js           # Конфигурация тестов
+```
+
+## Тестирование
+
+В проекте есть набор компонентных тестов для ключевых экранов и компонентов (Login, Transactions, Debts, NewTransaction, NavBar).
+
+Запуск тестов:
+
+```bash
+npm test
+```
+
+Тесты используют Jest и React Testing Library, API-запросы и `localStorage` мокируются, чтобы обеспечить изолированное тестирование UI.
+
