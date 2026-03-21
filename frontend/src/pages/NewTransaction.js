@@ -36,7 +36,7 @@ function NewTransaction() {
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">Транзакция добавлена! Перенаправление...</Alert>}
       <Form onSubmit={handleSubmit}>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="chatId">
           <Form.Label>ID чата</Form.Label>
           <Form.Control
             type="number"
@@ -46,7 +46,7 @@ function NewTransaction() {
             required
           />
         </Form.Group>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="toName">
           <Form.Label>Кому (имя получателя)</Form.Label>
           <Form.Control
             type="text"
@@ -56,7 +56,7 @@ function NewTransaction() {
             required
           />
         </Form.Group>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="sum">
           <Form.Label>Сумма</Form.Label>
           <Form.Control
             type="number"
@@ -67,7 +67,7 @@ function NewTransaction() {
             min="1"
           />
         </Form.Group>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="comment">
           <Form.Label>Комментарий</Form.Label>
           <Form.Control
             as="textarea"

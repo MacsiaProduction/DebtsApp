@@ -87,8 +87,9 @@ function Debts() {
           <Form onSubmit={handleBetweenSubmit}>
             <Row className="g-2">
               <Col xs={12} md={3}>
-                <Form.Label>ID чата</Form.Label>
+                <Form.Label htmlFor="betweenChatId">ID чата</Form.Label>
                 <Form.Control
+                  id="betweenChatId"
                   type="number"
                   value={chatId}
                   onChange={(e) => setChatId(e.target.value)}
@@ -96,8 +97,9 @@ function Debts() {
                 />
               </Col>
               <Col xs={12} md={4}>
-                <Form.Label>Кредитор (имя)</Form.Label>
+                <Form.Label htmlFor="betweenFromName">Кредитор (имя)</Form.Label>
                 <Form.Control
+                  id="betweenFromName"
                   type="text"
                   value={fromName}
                   onChange={(e) => setFromName(e.target.value)}
@@ -105,8 +107,9 @@ function Debts() {
                 />
               </Col>
               <Col xs={12} md={4}>
-                <Form.Label>Должник (имя)</Form.Label>
+                <Form.Label htmlFor="betweenToName">Должник (имя)</Form.Label>
                 <Form.Control
+                  id="betweenToName"
                   type="text"
                   value={toName}
                   onChange={(e) => setToName(e.target.value)}

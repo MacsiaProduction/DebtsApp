@@ -27,9 +27,8 @@ describe('Transactions page', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/все транзакции/i)).toBeInTheDocument();
-
     await waitFor(() => {
+      expect(screen.getByText(/все транзакции/i)).toBeInTheDocument();
       expect(screen.getByText('A')).toBeInTheDocument();
       expect(screen.getByText('B')).toBeInTheDocument();
       expect(screen.getByText('100')).toBeInTheDocument();
@@ -49,11 +48,7 @@ describe('Transactions page', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(mockedGetTransactions).toHaveBeenCalled();
-    });
-
-    const modeSelect = screen.getByLabelText(/режим просмотра/i);
+    const modeSelect = await screen.findByLabelText(/режим просмотра/i);
     fireEvent.change(modeSelect, { target: { value: 'chat' } });
 
     const chatInput = screen.getByLabelText(/id чата/i);
@@ -80,11 +75,7 @@ describe('Transactions page', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(mockedGetTransactions).toHaveBeenCalled();
-    });
-
-    const modeSelect = screen.getByLabelText(/режим просмотра/i);
+    const modeSelect = await screen.findByLabelText(/режим просмотра/i);
     fireEvent.change(modeSelect, { target: { value: 'between' } });
 
     const senderInput = screen.getByLabelText(/отправитель \(имя\)/i);
@@ -102,5 +93,4 @@ describe('Transactions page', () => {
       expect(screen.getByText('User2')).toBeInTheDocument();
     });
   });
-}
-
+});

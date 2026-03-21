@@ -46,5 +46,4 @@ describe('NavBar', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(mockNavigate).toHaveBeenCalledWith('/login');
   });
-}
-
+});

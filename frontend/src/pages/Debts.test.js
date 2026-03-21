@@ -47,11 +47,7 @@ describe('Debts page', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(mockedGetDebts).toHaveBeenCalled();
-    });
-
-    const chatInput = screen.getByLabelText(/id чата/i);
+    const chatInput = await screen.findByLabelText(/id чата/i);
     const fromInput = screen.getByLabelText(/кредитор \(имя\)/i);
     const toInput = screen.getByLabelText(/должник \(имя\)/i);
 
@@ -70,5 +66,4 @@ describe('Debts page', () => {
       expect(screen.getByText(/500/)).toBeInTheDocument();
     });
   });
-}
-
+});

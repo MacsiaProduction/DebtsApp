@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="http://localhost:8081"
+BASE_URL="http://localhost:8080"
 PASS=0
 FAIL=0
 
@@ -129,19 +129,10 @@ fi
 echo ""
 echo "── Add transaction ───────────────────────"
 
-# Note: toName uses telegram_name for Telegram users, or username for web users.
-# Web-registered users are looked up by telegram_name (which is null for web users).
-# This tests the current behaviour — expected to return 400 for web-only users.
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   "$BASE_URL/new?chatId=1&toName=$USER2&sum=100&comment=dinner" \
   -H "Authorization: Bearer $TOKEN1")
-if [[ "$STATUS" == "201" ]]; then
-  ok "POST /new transaction created (HTTP 201)"
-elif [[ "$STATUS" == "400" ]]; then
-  ok "POST /new returned 400 — web users don't have telegram_name (known limitation)"
-else
-  fail "POST /new unexpected status: $STATUS"
-fi
+assert_status "POST /new transaction created" 201 "$STATUS"
 
 # ─── summary ─────────────────────────────────────────────────────────────────
 echo ""

@@ -83,6 +83,7 @@ public class DebtsDAO {
 
     public UserData findUserByName(String username) throws UserNotFoundException {
         return userRepository.findByTelegramName(username)
+                .or(() -> userRepository.findByUsername(username))
                 .orElseThrow(() -> new UserNotFoundException(username));
     }
 
@@ -137,7 +138,8 @@ public class DebtsDAO {
     }
 
     private String getNameById(Long id) throws UserNotFoundException {
-        return findUserById(id).getTelegramName();
+        UserData user = findUserById(id);
+        return user.getTelegramName() != null ? user.getTelegramName() : user.getUsername();
     }
 
     private Page<TransactionInfo> coverTransactions(Page<Transaction> transactions) throws UserNotFoundException {

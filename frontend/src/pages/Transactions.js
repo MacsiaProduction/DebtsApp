@@ -67,8 +67,9 @@ function Transactions() {
       <Form className="mb-4">
         <Row className="align-items-end g-2">
           <Col xs={12} md={3}>
-            <Form.Label>Режим просмотра</Form.Label>
+            <Form.Label htmlFor="txMode">Режим просмотра</Form.Label>
             <Form.Select
+              id="txMode"
               value={mode}
               onChange={(e) => setMode(e.target.value)}
             >
@@ -80,8 +81,9 @@ function Transactions() {
           </Col>
           {(mode === 'chat' || mode === 'betweenChat') && (
             <Col xs={12} md={3}>
-              <Form.Label>ID чата</Form.Label>
+              <Form.Label htmlFor="txChatId">ID чата</Form.Label>
               <Form.Control
+                id="txChatId"
                 type="number"
                 value={chatId}
                 onChange={(e) => setChatId(e.target.value)}
@@ -91,16 +93,18 @@ function Transactions() {
           {(mode === 'between' || mode === 'betweenChat') && (
             <>
               <Col xs={12} md={3}>
-                <Form.Label>Отправитель (имя)</Form.Label>
+                <Form.Label htmlFor="txSender">Отправитель (имя)</Form.Label>
                 <Form.Control
+                  id="txSender"
                   type="text"
                   value={sender}
                   onChange={(e) => setSender(e.target.value)}
                 />
               </Col>
               <Col xs={12} md={3}>
-                <Form.Label>Получатель (имя)</Form.Label>
+                <Form.Label htmlFor="txRecipient">Получатель (имя)</Form.Label>
                 <Form.Control
+                  id="txRecipient"
                   type="text"
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}

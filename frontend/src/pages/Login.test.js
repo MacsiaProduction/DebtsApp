@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as api from '../services/api';
 import Login from './Login';
@@ -26,9 +26,10 @@ describe('Login page', () => {
       </MemoryRouter>,
     );
 
-    const usernameInput = screen.getByLabelText(/имя пользователя/i);
-    const passwordInput = screen.getByLabelText(/пароль/i);
-    const submitButton = screen.getByRole('button', { name: /войти/i });
+    const loginPanel = screen.getAllByRole('tabpanel')[0];
+    const usernameInput = within(loginPanel).getByLabelText(/имя пользователя/i);
+    const passwordInput = within(loginPanel).getByLabelText(/пароль/i);
+    const submitButton = within(loginPanel).getByRole('button', { name: /войти/i });
 
     fireEvent.change(usernameInput, { target: { value: 'user1' } });
     fireEvent.change(passwordInput, { target: { value: 'pass1' } });
@@ -49,9 +50,10 @@ describe('Login page', () => {
       </MemoryRouter>,
     );
 
-    const usernameInput = screen.getByLabelText(/имя пользователя/i);
-    const passwordInput = screen.getByLabelText(/пароль/i);
-    const submitButton = screen.getByRole('button', { name: /войти/i });
+    const loginPanel = screen.getAllByRole('tabpanel')[0];
+    const usernameInput = within(loginPanel).getByLabelText(/имя пользователя/i);
+    const passwordInput = within(loginPanel).getByLabelText(/пароль/i);
+    const submitButton = within(loginPanel).getByRole('button', { name: /войти/i });
 
     fireEvent.change(usernameInput, { target: { value: 'user1' } });
     fireEvent.change(passwordInput, { target: { value: 'wrong' } });
@@ -74,9 +76,10 @@ describe('Login page', () => {
     const registerTab = screen.getByRole('tab', { name: /регистрация/i });
     fireEvent.click(registerTab);
 
-    const usernameInput = screen.getByLabelText(/имя пользователя/i);
-    const passwordInput = screen.getByLabelText(/пароль/i);
-    const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
+    const registerPanel = screen.getAllByRole('tabpanel')[1];
+    const usernameInput = within(registerPanel).getByLabelText(/имя пользователя/i);
+    const passwordInput = within(registerPanel).getByLabelText(/пароль/i);
+    const submitButton = within(registerPanel).getByRole('button', { name: /зарегистрироваться/i });
 
     fireEvent.change(usernameInput, { target: { value: 'newuser' } });
     fireEvent.change(passwordInput, { target: { value: 'newpass' } });
@@ -132,5 +135,4 @@ describe('Login page', () => {
       expect(localStorage.getItem('token')).toBe('jwt-by-session');
     });
   });
-}
-
+});

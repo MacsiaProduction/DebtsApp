@@ -30,6 +30,12 @@ async function apiRequest(endpoint, method = 'GET', body = null, auth = true) {
     data = text;
   }
 
+  if (response.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    return null;
+  }
+
   if (!response.ok) {
     const message =
       (data && data.message) || (typeof data === 'string' ? data : null) || 'Ошибка запроса';
