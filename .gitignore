@@ -42,9 +42,13 @@ frontend/out/
 frontend/.vite/
 
 # Dependencies
-frontend/package-lock.json
 frontend/yarn.lock
 frontend/pnpm-lock.yaml
+
+# E2E (Playwright)
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
 
 # Environment files
 .env
