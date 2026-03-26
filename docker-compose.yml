@@ -13,6 +13,11 @@ services:
       - '5432:5432'
     volumes:
       - debts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U debtsbot -d debtsbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   debts_neo4j:
     image: neo4j:5-community
@@ -25,6 +30,12 @@ services:
       - '7687:7687'
     volumes:
       - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p debtsbot123 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   debts_bot:
     container_name: debts_bot
@@ -37,13 +48,15 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot
       - SPRING_DATASOURCE_USERNAME=debtsbot
       - SPRING_DATASOURCE_PASSWORD=debtsbot
-      - SPRING_NEO4J_URI=bolt://debts_neo4j:7687
+      - SPRING_NEO4J_URI=bolt://10.89.1.4:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
       - SPRING_NEO4J_AUTHENTICATION_PASSWORD=debtsbot123
+      - TELEGRAM_BOT_ENABLED=false
     depends_on:
-      - debts_bot_db
-      - debts_neo4j
-
+      debts_bot_db:
+        condition: service_healthy
+      debts_neo4j:
+        condition: service_healthy
 volumes:
   debts_data:
     external: false
