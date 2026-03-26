@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .sessionManagement((sessionManagement) ->
                         sessionManagement
                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                                .sessionFixation(sessionFixation -> sessionFixation.none())
                 )
                 .exceptionHandling((exceptionHandling) ->
                         exceptionHandling
