@@ -1,36 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Table, Spinner, Alert, Form, Row, Col, Button } from 'react-bootstrap';
-import {
-  getTransactions,
-  getTransactionsInChat,
-  getTransactionsBetween,
-  getTransactionsBetweenInChat,
-} from '../services/api';
+import { getTransactions, getTransactionsBetween } from '../services/api';
 
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [mode, setMode] = useState('all');
-  const [chatId, setChatId] = useState('');
   const [sender, setSender] = useState('');
   const [recipient, setRecipient] = useState('');
 
-  const loadData = async () => {
+  const loadData = async (nextSender = '', nextRecipient = '') => {
     setLoading(true);
     setError('');
     try {
-      let data = [];
-      if (mode === 'all') {
-        data = await getTransactions();
-      } else if (mode === 'chat') {
-        data = await getTransactionsInChat(chatId);
-      } else if (mode === 'between') {
-        data = await getTransactionsBetween(sender, recipient);
-      } else if (mode === 'betweenChat') {
-        data = await getTransactionsBetweenInChat(chatId, sender, recipient);
-      }
+      const hasPairFilter = nextSender.trim() && nextRecipient.trim();
+      const data = hasPairFilter
+        ? await getTransactionsBetween(nextSender.trim(), nextRecipient.trim())
+        : await getTransactions();
       setTransactions(data);
     } catch (err) {
       setError(err.message);
@@ -45,6 +31,25 @@ function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const hasSender = sender.trim().length > 0;
+    const hasRecipient = recipient.trim().length > 0;
+
+    if (hasSender !== hasRecipient) {
+      setError('Для фильтра укажите обоих пользователей.');
+      return;
+    }
+
+    await loadData(sender, recipient);
+  };
+
+  const handleReset = async () => {
+    setSender('');
+    setRecipient('');
+    await loadData();
+  };
+
   if (loading) {
     return (
       <Container className="text-center mt-5">
@@ -53,68 +58,38 @@ function Transactions() {
     );
   }
 
-  if (error) {
-    return (
-      <Container className="mt-5">
-        <Alert variant="danger">{error}</Alert>
-      </Container>
-    );
-  }
-
   return (
     <Container className="mt-4">
-      <h2>Все транзакции</h2>
-      <Form className="mb-4">
+      <h2>Транзакции</h2>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <Form className="mb-4" onSubmit={handleSubmit}>
         <Row className="align-items-end g-2">
-          <Col xs={12} md={3}>
-            <Form.Label htmlFor="txMode">Режим просмотра</Form.Label>
-            <Form.Select
-              id="txMode"
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-            >
-              <option value="all">Все мои транзакции</option>
-              <option value="chat">Мои транзакции в чате</option>
-              <option value="between">Между двумя пользователями</option>
-              <option value="betweenChat">Между двумя в чате</option>
-            </Form.Select>
+          <Col xs={12} md={4}>
+            <Form.Label htmlFor="txSender">Отправитель (имя)</Form.Label>
+            <Form.Control
+              id="txSender"
+              type="text"
+              value={sender}
+              onChange={(e) => setSender(e.target.value)}
+            />
           </Col>
-          {(mode === 'chat' || mode === 'betweenChat') && (
-            <Col xs={12} md={3}>
-              <Form.Label htmlFor="txChatId">ID чата</Form.Label>
-              <Form.Control
-                id="txChatId"
-                type="number"
-                value={chatId}
-                onChange={(e) => setChatId(e.target.value)}
-              />
-            </Col>
-          )}
-          {(mode === 'between' || mode === 'betweenChat') && (
-            <>
-              <Col xs={12} md={3}>
-                <Form.Label htmlFor="txSender">Отправитель (имя)</Form.Label>
-                <Form.Control
-                  id="txSender"
-                  type="text"
-                  value={sender}
-                  onChange={(e) => setSender(e.target.value)}
-                />
-              </Col>
-              <Col xs={12} md={3}>
-                <Form.Label htmlFor="txRecipient">Получатель (имя)</Form.Label>
-                <Form.Control
-                  id="txRecipient"
-                  type="text"
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                />
-              </Col>
-            </>
-          )}
+          <Col xs={12} md={4}>
+            <Form.Label htmlFor="txRecipient">Получатель (имя)</Form.Label>
+            <Form.Control
+              id="txRecipient"
+              type="text"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+            />
+          </Col>
           <Col xs="auto" className="mt-3">
-            <Button variant="primary" onClick={loadData}>
-              Применить фильтр
+            <Button variant="primary" type="submit">
+              Найти
+            </Button>
+          </Col>
+          <Col xs="auto" className="mt-3">
+            <Button variant="outline-secondary" type="button" onClick={handleReset}>
+              Сбросить
             </Button>
           </Col>
         </Row>
@@ -129,7 +104,6 @@ function Transactions() {
             <th>Получатель</th>
             <th>Сумма</th>
             <th>Комментарий</th>
-            <th>ID чата</th>
           </tr>
         </thead>
         <tbody>
@@ -139,7 +113,6 @@ function Transactions() {
               <td>{tx.recipient}</td>
               <td>{tx.sum}</td>
               <td>{tx.comment}</td>
-              <td>{tx.chatId}</td>
             </tr>
           ))}
         </tbody>

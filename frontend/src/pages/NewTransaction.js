@@ -5,7 +5,6 @@ import { addTransaction } from '../services/api';
 
 function NewTransaction() {
   const [form, setForm] = useState({
-    chatId: '',
     toName: '',
     sum: '',
     comment: '',
@@ -21,6 +20,7 @@ function NewTransaction() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
       await addTransaction(form);
       setSuccess(true);
@@ -36,16 +36,6 @@ function NewTransaction() {
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">Транзакция добавлена! Перенаправление...</Alert>}
       <Form onSubmit={handleSubmit}>
-        <Form.Group className="mb-3" controlId="chatId">
-          <Form.Label>ID чата</Form.Label>
-          <Form.Control
-            type="number"
-            name="chatId"
-            value={form.chatId}
-            onChange={handleChange}
-            required
-          />
-        </Form.Group>
         <Form.Group className="mb-3" controlId="toName">
           <Form.Label>Кому (имя получателя)</Form.Label>
           <Form.Control

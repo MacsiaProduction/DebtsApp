@@ -2,14 +2,13 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Transactions from './pages/Transactions';
-import NewTransaction from './pages/NewTransaction';
 import Debts from './pages/Debts';
-import Profile from './pages/Profile';
+import NewTransaction from './pages/NewTransaction';
 import NavBar from './components/NavBar';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  return token ? children : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -42,15 +41,8 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <Profile />
-            </PrivateRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/transactions" />} />
+        <Route path="/" element={<Navigate to="/transactions" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

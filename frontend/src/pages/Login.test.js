@@ -8,8 +8,6 @@ jest.mock('../services/api');
 
 const mockedLogin = api.login;
 const mockedRegister = api.register;
-const mockedGetSessionToken = api.getSessionToken;
-const mockedLoginBySessionToken = api.loginBySessionToken;
 
 describe('Login page', () => {
   beforeEach(() => {
@@ -91,48 +89,15 @@ describe('Login page', () => {
     });
   });
 
-  test('generates and displays session token', async () => {
-    mockedGetSessionToken.mockResolvedValue('session-token');
+  test('redirects authenticated user away from login page', () => {
+    localStorage.setItem('token', 'jwt-by-session');
 
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/login']}>
         <Login />
       </MemoryRouter>,
     );
 
-    const sessionTab = screen.getByRole('tab', { name: /вход по сессионному токену/i });
-    fireEvent.click(sessionTab);
-
-    const generateButton = screen.getByRole('button', { name: /сгенерировать/i });
-    fireEvent.click(generateButton);
-
-    await waitFor(() => {
-      expect(mockedGetSessionToken).toHaveBeenCalled();
-      expect(screen.getByDisplayValue('session-token')).toBeInTheDocument();
-    });
-  });
-
-  test('logs in by session token', async () => {
-    mockedLoginBySessionToken.mockResolvedValue({ token: 'jwt-by-session' });
-
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
-
-    const sessionTab = screen.getByRole('tab', { name: /вход по сессионному токену/i });
-    fireEvent.click(sessionTab);
-
-    const sessionInput = screen.getByLabelText(/сессионный токен/i);
-    const submitButton = screen.getByRole('button', { name: /войти по токену/i });
-
-    fireEvent.change(sessionInput, { target: { value: 'token123' } });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(mockedLoginBySessionToken).toHaveBeenCalledWith('token123');
-      expect(localStorage.getItem('token')).toBe('jwt-by-session');
-    });
+    expect(screen.queryByRole('heading', { name: /debtsapp/i })).not.toBeInTheDocument();
   });
 });

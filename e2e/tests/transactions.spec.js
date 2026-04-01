@@ -12,12 +12,14 @@ async function registerAndLogin(page, username, password) {
   await expect(page).toHaveURL('/transactions');
 }
 
-async function loginOnly(page, username, password) {
-  await page.goto('/login');
-  await page.locator('#loginUsername').fill(username);
-  await page.locator('#loginPassword').fill(password);
-  await page.getByRole('button', { name: 'Войти' }).click();
-  await expect(page).toHaveURL('/transactions');
+async function createTransaction(page, toName, sum, comment) {
+  await page.goto('/new');
+  await page.locator('#toName').fill(toName);
+  await page.locator('#sum').fill(sum);
+  await page.locator('#comment').fill(comment);
+  await page.getByRole('button', { name: 'Создать' }).click();
+  await expect(page.getByText('Транзакция добавлена')).toBeVisible();
+  await page.waitForURL('/transactions');
 }
 
 test.describe('Transactions', () => {
@@ -41,18 +43,8 @@ test.describe('Transactions', () => {
       await registerAndLogin(page1, alice, 'pass1');
       await registerAndLogin(page2, bob, 'pass2');
 
-      // Alice creates a transaction to Bob
-      await page1.goto('/new');
-      await page1.locator('#chatId').fill('1');
-      await page1.locator('#toName').fill(bob);
-      await page1.locator('#sum').fill('100');
-      await page1.locator('#comment').fill('dinner');
-      await page1.getByRole('button', { name: 'Создать' }).click();
+      await createTransaction(page1, bob, '100', 'dinner');
 
-      await expect(page1.getByText('Транзакция добавлена')).toBeVisible();
-      await page1.waitForURL('/transactions');
-
-      // Alice should see the transaction
       await expect(page1.getByRole('cell', { name: alice })).toBeVisible();
       await expect(page1.getByRole('cell', { name: bob })).toBeVisible();
       await expect(page1.getByRole('cell', { name: '100' })).toBeVisible();
@@ -77,16 +69,8 @@ test.describe('Transactions', () => {
       await registerAndLogin(page1, alice, 'pass1');
       await registerAndLogin(page2, bob, 'pass2');
 
-      // Alice sends Bob money
-      await page1.goto('/new');
-      await page1.locator('#chatId').fill('1');
-      await page1.locator('#toName').fill(bob);
-      await page1.locator('#sum').fill('200');
-      await page1.locator('#comment').fill('lunch');
-      await page1.getByRole('button', { name: 'Создать' }).click();
-      await page1.waitForURL('/transactions');
+      await createTransaction(page1, bob, '200', 'lunch');
 
-      // Bob should see the transaction in his list
       await page2.goto('/transactions');
       await expect(page2.getByRole('cell', { name: 'lunch' })).toBeVisible();
       await expect(page2.getByRole('cell', { name: '200' })).toBeVisible();
@@ -115,29 +99,12 @@ test.describe('Transactions', () => {
       await registerAndLogin(page2, bob, 'pass2');
       await registerAndLogin(page3, charlie, 'pass3');
 
-      // Alice → Bob
-      await page1.goto('/new');
-      await page1.locator('#chatId').fill('1');
-      await page1.locator('#toName').fill(bob);
-      await page1.locator('#sum').fill('50');
-      await page1.locator('#comment').fill('filter-test');
-      await page1.getByRole('button', { name: 'Создать' }).click();
-      await page1.waitForURL('/transactions');
+      await createTransaction(page1, bob, '50', 'filter-test');
+      await createTransaction(page1, charlie, '999', 'should-not-appear');
 
-      // Alice → Charlie (should NOT appear in filter)
-      await page1.goto('/new');
-      await page1.locator('#chatId').fill('1');
-      await page1.locator('#toName').fill(charlie);
-      await page1.locator('#sum').fill('999');
-      await page1.locator('#comment').fill('should-not-appear');
-      await page1.getByRole('button', { name: 'Создать' }).click();
-      await page1.waitForURL('/transactions');
-
-      // Apply "between" filter: alice → bob
-      await page1.locator('#txMode').selectOption('between');
       await page1.locator('#txSender').fill(alice);
       await page1.locator('#txRecipient').fill(bob);
-      await page1.getByRole('button', { name: 'Применить фильтр' }).click();
+      await page1.getByRole('button', { name: 'Найти' }).click();
 
       await expect(page1.getByRole('cell', { name: 'filter-test' })).toBeVisible();
       await expect(page1.getByText('should-not-appear')).not.toBeVisible();
@@ -163,13 +130,7 @@ test.describe('Transactions', () => {
       await registerAndLogin(page2, bob, 'pass2');
 
       for (const [sum, comment] of [['10', 'coffee'], ['20', 'taxi'], ['30', 'hotel']]) {
-        await page1.goto('/new');
-        await page1.locator('#chatId').fill('1');
-        await page1.locator('#toName').fill(bob);
-        await page1.locator('#sum').fill(sum);
-        await page1.locator('#comment').fill(comment);
-        await page1.getByRole('button', { name: 'Создать' }).click();
-        await page1.waitForURL('/transactions');
+        await createTransaction(page1, bob, sum, comment);
       }
 
       const rows = page1.getByRole('row');

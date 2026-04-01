@@ -29,10 +29,7 @@ function NavBar() {
                   Долги
                 </Nav.Link>
                 <Nav.Link as={Link} to="/new">
-                  ➕ Добавить
-                </Nav.Link>
-                <Nav.Link as={Link} to="/profile">
-                  Профиль
+                  Добавить
                 </Nav.Link>
               </>
             )}

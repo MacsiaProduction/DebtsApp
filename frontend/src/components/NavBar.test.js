@@ -28,7 +28,8 @@ describe('NavBar', () => {
     expect(screen.getByText(/DebtsApp/i)).toBeInTheDocument();
     expect(screen.getByText(/Транзакции/i)).toBeInTheDocument();
     expect(screen.getByText(/Долги/i)).toBeInTheDocument();
-    expect(screen.getByText(/Профиль/i)).toBeInTheDocument();
+    expect(screen.getByText(/Добавить/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Профиль/i)).not.toBeInTheDocument();
   });
 
   test('logs out user on button click', () => {

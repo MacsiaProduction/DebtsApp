@@ -7,9 +7,7 @@ import Transactions from './Transactions';
 jest.mock('../services/api');
 
 const mockedGetTransactions = api.getTransactions;
-const mockedGetTransactionsInChat = api.getTransactionsInChat;
 const mockedGetTransactionsBetween = api.getTransactionsBetween;
-const mockedGetTransactionsBetweenInChat = api.getTransactionsBetweenInChat;
 
 describe('Transactions page', () => {
   beforeEach(() => {
@@ -28,38 +26,11 @@ describe('Transactions page', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/все транзакции/i)).toBeInTheDocument();
+      expect(screen.getByText(/транзакции/i)).toBeInTheDocument();
       expect(screen.getByText('A')).toBeInTheDocument();
       expect(screen.getByText('B')).toBeInTheDocument();
       expect(screen.getByText('100')).toBeInTheDocument();
       expect(screen.getByText('test')).toBeInTheDocument();
-    });
-  });
-
-  test('applies chat filter', async () => {
-    mockedGetTransactions.mockResolvedValue([]);
-    mockedGetTransactionsInChat.mockResolvedValue([
-      { sender: 'ChatUser', recipient: 'Other', sum: 50, comment: '', chatId: 42 },
-    ]);
-
-    render(
-      <MemoryRouter>
-        <Transactions />
-      </MemoryRouter>,
-    );
-
-    const modeSelect = await screen.findByLabelText(/режим просмотра/i);
-    fireEvent.change(modeSelect, { target: { value: 'chat' } });
-
-    const chatInput = screen.getByLabelText(/id чата/i);
-    fireEvent.change(chatInput, { target: { value: '42' } });
-
-    const applyButton = screen.getByRole('button', { name: /применить фильтр/i });
-    fireEvent.click(applyButton);
-
-    await waitFor(() => {
-      expect(mockedGetTransactionsInChat).toHaveBeenCalledWith('42');
-      expect(screen.getByText('ChatUser')).toBeInTheDocument();
     });
   });
 
@@ -75,16 +46,13 @@ describe('Transactions page', () => {
       </MemoryRouter>,
     );
 
-    const modeSelect = await screen.findByLabelText(/режим просмотра/i);
-    fireEvent.change(modeSelect, { target: { value: 'between' } });
-
-    const senderInput = screen.getByLabelText(/отправитель \(имя\)/i);
+    const senderInput = await screen.findByLabelText(/отправитель \(имя\)/i);
     const recipientInput = screen.getByLabelText(/получатель \(имя\)/i);
 
     fireEvent.change(senderInput, { target: { value: 'User1' } });
     fireEvent.change(recipientInput, { target: { value: 'User2' } });
 
-    const applyButton = screen.getByRole('button', { name: /применить фильтр/i });
+    const applyButton = screen.getByRole('button', { name: /найти/i });
     fireEvent.click(applyButton);
 
     await waitFor(() => {
@@ -92,5 +60,25 @@ describe('Transactions page', () => {
       expect(screen.getByText('User1')).toBeInTheDocument();
       expect(screen.getByText('User2')).toBeInTheDocument();
     });
+  });
+
+  test('shows validation error when only one participant is set', async () => {
+    mockedGetTransactions.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <Transactions />
+      </MemoryRouter>,
+    );
+
+    const senderInput = await screen.findByLabelText(/отправитель \(имя\)/i);
+    fireEvent.change(senderInput, { target: { value: 'User1' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /найти/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/для фильтра укажите обоих пользователей/i)).toBeInTheDocument();
+    });
+    expect(mockedGetTransactionsBetween).not.toHaveBeenCalled();
   });
 });

@@ -84,7 +84,7 @@ public class WebController {
 
     @PostMapping("new")
     public ResponseEntity<String> createTransaction(@NotNull Principal principal,
-                                                    @Positive @RequestParam Long chatId,
+                                                    @PositiveOrZero @RequestParam(defaultValue = "0") Long chatId,
                                                     @Size(max = 50) @NotBlank @RequestParam String toName,
                                                     @Positive @RequestParam Long sum,
                                                     @Size(max = 50) @RequestParam String comment) {

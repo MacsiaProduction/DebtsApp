@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@SuppressWarnings("resource")
 public class AuthWebControllerTest {
 
     @Container
@@ -106,5 +109,32 @@ public class AuthWebControllerTest {
 
         ResponseEntity<?> response = restTemplate.postForEntity(url("/auth/login"), new RegisterDTO("badpassuser_auth", "Wrong!"), String.class);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
+    public void testProtectedEndpointRequiresJwt() {
+        ResponseEntity<String> response = restTemplate.getForEntity(url("/transactions"), String.class);
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
+    public void testProtectedEndpointWithJwtIsAccessible() {
+        var dto = new RegisterDTO("jwtuser_auth", "TestPass1!");
+        restTemplate.postForEntity(url("/auth/register"), dto, String.class);
+
+        ResponseEntity<String> loginResponse = restTemplate.postForEntity(url("/auth/login"), dto, String.class);
+        assertEquals(HttpStatus.OK, loginResponse.getStatusCode());
+        String jwt = loginResponse.getBody();
+        assertNotNull(jwt);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(jwt);
+        ResponseEntity<String> response = restTemplate.exchange(
+                url("/transactions"),
+                org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
     }
 }

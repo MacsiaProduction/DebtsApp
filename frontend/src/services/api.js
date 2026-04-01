@@ -1,9 +1,38 @@
-const API_BASE = '';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8080';
 
 const getToken = () => localStorage.getItem('token');
 
+const getErrorMessage = (data, fallback) =>
+  (data && data.message) || (typeof data === 'string' ? data : null) || fallback;
+
+const normalizeCollection = (result) => {
+  if (result && Array.isArray(result.content)) {
+    return result.content;
+  }
+
+  return Array.isArray(result) ? result : [];
+};
+
+const parseResponse = async (response) => {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    return text;
+  }
+};
+
+const clearAuthAndRedirect = () => {
+  localStorage.removeItem('token');
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
 async function apiRequest(endpoint, method = 'GET', body = null, auth = true) {
   const headers = { 'Content-Type': 'application/json' };
+
   if (auth) {
     const token = getToken();
     if (token) {
@@ -11,35 +40,22 @@ async function apiRequest(endpoint, method = 'GET', body = null, auth = true) {
     }
   }
 
-  const options = {
-    method,
-    headers,
-  };
+  const options = { method, headers };
 
   if (body) {
     options.body = JSON.stringify(body);
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, options);
-
-  const text = await response.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch (e) {
-    data = text;
-  }
+  const data = await parseResponse(response);
 
   if (response.status === 401) {
-    localStorage.removeItem('token');
-    window.location.href = '/login';
+    clearAuthAndRedirect();
     return null;
   }
 
   if (!response.ok) {
-    const message =
-      (data && data.message) || (typeof data === 'string' ? data : null) || 'Ошибка запроса';
-    throw new Error(message);
+    throw new Error(getErrorMessage(data, 'Ошибка запроса'));
   }
 
   return data;
@@ -52,108 +68,38 @@ export const login = async (username, password) => {
     body: JSON.stringify({ username, password }),
   });
 
-  const text = await response.text();
+  const data = await parseResponse(response);
 
   if (!response.ok) {
-    throw new Error(text || 'Ошибка авторизации');
+    throw new Error(getErrorMessage(data, 'Ошибка авторизации'));
   }
 
-  return { token: text };
-};
-
-export const getTransactions = async (page = 0, size = 50) => {
-  const result = await apiRequest(`/transactions?page=${page}&size=${size}`);
-  if (result && Array.isArray(result.content)) {
-    return result.content;
-  }
-  return Array.isArray(result) ? result : [];
-};
-
-export const addTransaction = ({ chatId, toName, sum, comment }) =>
-  apiRequest(
-    `/new?chatId=${encodeURIComponent(chatId)}&toName=${encodeURIComponent(
-      toName,
-    )}&sum=${encodeURIComponent(sum)}&comment=${encodeURIComponent(comment)}`,
-    'POST',
-  );
-
-export const getDebts = async (page = 0, size = 50) => {
-  const result = await apiRequest(`/debts?page=${page}&size=${size}`);
-  if (result && Array.isArray(result.content)) {
-    return result.content;
-  }
-  return Array.isArray(result) ? result : [];
+  return { token: typeof data === 'string' ? data : data?.token };
 };
 
 export const register = (username, password) =>
   apiRequest('/auth/register', 'POST', { username, password }, false);
 
-export const getTransactionsInChat = async (chatId, page = 0, size = 50) => {
-  const result = await apiRequest(
-    `/transactions/chat?chatId=${encodeURIComponent(chatId)}&page=${page}&size=${size}`,
-  );
-  if (result && Array.isArray(result.content)) {
-    return result.content;
-  }
-  return Array.isArray(result) ? result : [];
-};
+export const getTransactions = async (page = 0, size = 50) =>
+  normalizeCollection(await apiRequest(`/transactions?page=${page}&size=${size}`));
 
-export const getTransactionsBetween = async (sender, recipient, page = 0, size = 50) => {
-  const result = await apiRequest(
-    `/transactions/between?sender=${encodeURIComponent(
-      sender,
-    )}&recipient=${encodeURIComponent(recipient)}&page=${page}&size=${size}`,
-  );
-  if (result && Array.isArray(result.content)) {
-    return result.content;
-  }
-  return Array.isArray(result) ? result : [];
-};
-
-export const getTransactionsBetweenInChat = async (
-  chatId,
-  sender,
-  recipient,
-  page = 0,
-  size = 50,
-) => {
-  const result = await apiRequest(
-    `/transactions/between/chat?chatId=${encodeURIComponent(
-      chatId,
-    )}&sender=${encodeURIComponent(sender)}&recipient=${encodeURIComponent(
-      recipient,
-    )}&page=${page}&size=${size}`,
-  );
-  if (result && Array.isArray(result.content)) {
-    return result.content;
-  }
-  return Array.isArray(result) ? result : [];
-};
-
-export const getDebtBetween = (chatId, fromName, toName) =>
+export const addTransaction = ({ toName, sum, comment }) =>
   apiRequest(
-    `/debts/between?chatId=${encodeURIComponent(chatId)}&fromName=${encodeURIComponent(
-      fromName,
-    )}&toName=${encodeURIComponent(toName)}`,
+    `/new?toName=${encodeURIComponent(toName)}&sum=${encodeURIComponent(sum)}&comment=${encodeURIComponent(
+      comment || '',
+    )}`,
+    'POST',
   );
 
-export const getSessionToken = () => apiRequest('/session', 'GET', null, false);
+export const getTransactionsBetween = async (sender, recipient, page = 0, size = 50) =>
+  normalizeCollection(
+    await apiRequest(
+      `/transactions/between?sender=${encodeURIComponent(
+        sender,
+      )}&recipient=${encodeURIComponent(recipient)}&page=${page}&size=${size}`,
+    ),
+  );
 
-export const loginBySessionToken = async (sessionToken) => {
-  const response = await fetch(`${API_BASE}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: sessionToken,
-  });
-
-  const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(text || 'Ошибка входа по сессионному токену');
-  }
-
-  return { token: text };
-};
-
-export const getLinkToken = () => apiRequest('/auth/link-token');
+export const getDebts = async (page = 0, size = 50) =>
+  normalizeCollection(await apiRequest(`/debts?page=${page}&size=${size}`));
 

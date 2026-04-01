@@ -22,7 +22,6 @@ describe('NewTransaction page', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText(/id чата/i), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/кому \(имя получателя\)/i), {
       target: { value: 'UserB' },
     });
@@ -31,12 +30,10 @@ describe('NewTransaction page', () => {
       target: { value: 'For dinner' },
     });
 
-    const button = screen.getByRole('button', { name: /создать/i });
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: /создать/i }));
 
     await waitFor(() => {
       expect(mockedAddTransaction).toHaveBeenCalledWith({
-        chatId: '1',
         toName: 'UserB',
         sum: '150',
         comment: 'For dinner',

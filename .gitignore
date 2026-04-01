@@ -65,3 +65,16 @@ frontend/.env.local
 /.idea/
 /.gradle/
 /.claude/
+
+backend/build/
+backend/bin/
+backend/target/
+backend/.gradle/
+backend/.idea/
+backend/.vscode/
+backend/.DS_Store/
+backend/.env/
+backend/.env.local/
+backend/.env.development.local/
+backend/.env.test.local/
+backend/.env.production.local/

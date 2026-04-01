@@ -7,7 +7,6 @@ import Debts from './Debts';
 jest.mock('../services/api');
 
 const mockedGetDebts = api.getDebts;
-const mockedGetDebtBetween = api.getDebtBetween;
 
 describe('Debts page', () => {
   beforeEach(() => {
@@ -32,14 +31,8 @@ describe('Debts page', () => {
     });
   });
 
-  test('shows debt between two users in chat', async () => {
+  test('shows empty state when debts list is empty', async () => {
     mockedGetDebts.mockResolvedValue([]);
-    mockedGetDebtBetween.mockResolvedValue({
-      from: 'Creditor',
-      to: 'Debtor',
-      sum: 500,
-      chatId: 10,
-    });
 
     render(
       <MemoryRouter>
@@ -47,23 +40,8 @@ describe('Debts page', () => {
       </MemoryRouter>,
     );
 
-    const chatInput = await screen.findByLabelText(/id чата/i);
-    const fromInput = screen.getByLabelText(/кредитор \(имя\)/i);
-    const toInput = screen.getByLabelText(/должник \(имя\)/i);
-
-    fireEvent.change(chatInput, { target: { value: '10' } });
-    fireEvent.change(fromInput, { target: { value: 'Creditor' } });
-    fireEvent.change(toInput, { target: { value: 'Debtor' } });
-
-    const button = screen.getByRole('button', { name: /показать долг/i });
-    fireEvent.click(button);
-
     await waitFor(() => {
-      expect(mockedGetDebtBetween).toHaveBeenCalledWith('10', 'Creditor', 'Debtor');
-      expect(
-        screen.getByText(/долг между creditor и debtor в чате 10/i),
-      ).toBeInTheDocument();
-      expect(screen.getByText(/500/)).toBeInTheDocument();
+      expect(screen.getByText(/нет долгов для отображения/i)).toBeInTheDocument();
     });
   });
 });

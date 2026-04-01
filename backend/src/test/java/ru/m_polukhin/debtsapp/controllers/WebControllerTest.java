@@ -41,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc(addFilters = false)
 @Testcontainers
+@SuppressWarnings({"resource", "null"})
 public class WebControllerTest {
 
     @Container
@@ -128,6 +129,19 @@ public class WebControllerTest {
 
         var debt = debtsDAO.getDebt(1L, "user1", "user2");
         assertThat(debt.sum()).isEqualTo(501L);
+    }
+
+    @Test
+    public void testCreateTransactionUsesDefaultWebContext() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/new")
+                        .principal(principalOf(user1))
+                        .param("toName", "user2")
+                        .param("sum", "5")
+                        .param("comment", "web-default"))
+                .andExpect(status().isCreated());
+
+        var debt = debtsDAO.getDebt(0L, "user1", "user2");
+        assertThat(debt.sum()).isEqualTo(5L);
     }
 
     @Test
