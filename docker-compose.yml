@@ -16,6 +16,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      default:
+        aliases:
+          - debts-bot-db
 
   debts_neo4j:
     image: neo4j:5-community
@@ -34,20 +38,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      default:
+        aliases:
+          - debts-neo4j
 
   debts_bot:
     container_name: debts_bot
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
     ports:
       - '8080:8080'
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://debts_bot_db:5432/debtsbot
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://debts-bot-db:5432/debtsbot
       - SPRING_DATASOURCE_USERNAME=debtsbot
       - SPRING_DATASOURCE_PASSWORD=debtsbot
-      - SPRING_NEO4J_URI=bolt://debts_neo4j:7687
+      - SPRING_NEO4J_URI=bolt://debts-neo4j:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
       - SPRING_NEO4J_AUTHENTICATION_PASSWORD=debtsbot123
       - TELEGRAM_BOT_ENABLED=false
@@ -56,6 +63,11 @@ services:
         condition: service_healthy
       debts_neo4j:
         condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - debts-bot
+
   debts_frontend:
     container_name: debts_frontend
     build:
@@ -63,7 +75,6 @@ services:
       dockerfile: Dockerfile
       args:
         REACT_APP_API_BASE: /api
-    restart: unless-stopped
     ports:
       - '3000:80'
     depends_on:

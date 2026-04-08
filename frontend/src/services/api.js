@@ -1,18 +1,4 @@
-const getDefaultApiBase = () => {
-  if (typeof window === 'undefined') {
-    return 'http://localhost:8080';
-  }
-
-  const { hostname } = window.location;
-
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8080';
-  }
-
-  return '/api';
-};
-
-const API_BASE = process.env.REACT_APP_API_BASE || getDefaultApiBase();
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8080';
 
 const getToken = () => localStorage.getItem('token');
 
@@ -116,3 +102,4 @@ export const getTransactionsBetween = async (sender, recipient, page = 0, size =
 
 export const getDebts = async (page = 0, size = 50) =>
   normalizeCollection(await apiRequest(`/debts?page=${page}&size=${size}`));
+
