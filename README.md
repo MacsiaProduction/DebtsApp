@@ -6,9 +6,11 @@ A monorepo application for transaction management and debt calculation among use
 
 ```
 .
-├── backend/          # Spring Boot REST API
-├── frontend/         # Frontend application (to be implemented)
-└── docker-compose.yml # Docker orchestration
+├── backend/                 # Spring Boot REST API
+├── frontend/                # React frontend + nginx container
+├── deploy/                  # Production compose files
+├── infra/ansible/           # Ansible deployment playbook
+└── docker-compose.yml       # Local Docker orchestration
 ```
 
 ## Table of Contents
@@ -24,7 +26,8 @@ A monorepo application for transaction management and debt calculation among use
 ### Using Docker Compose (Recommended)
 1. Clone the project from the repository.
 2. Run `docker-compose up` from the root directory.
-3. The backend will be available at `http://localhost:8080`.
+3. The frontend will be available at `http://localhost:3000`.
+4. The backend API will be available at `http://localhost:8080`.
 
 ### Manual Setup
 1. Set up PostgreSQL and Neo4j databases.
@@ -76,9 +79,34 @@ For more details, see the backend directory.
 
 ## Frontend
 
-The frontend directory is ready for your frontend framework of choice (React, Vue, Angular, etc.).
+The frontend is a React application served from nginx in Docker. In production it talks to the backend through `/api`, so the browser only needs one public entrypoint.
 
 For more details, see the frontend directory.
+
+## Lab 2 Infrastructure
+
+Task 2 is covered by the following pieces:
+
+- `backend/Dockerfile` builds the Spring Boot backend image.
+- `frontend/Dockerfile` builds the React frontend image and serves it with nginx.
+- `docker-compose.yml` runs the full local stack: frontend, backend, PostgreSQL, and Neo4j.
+- `.github/workflows/publish-images.yml` publishes backend and frontend images to GHCR.
+- `deploy/docker-compose.prod.yml` describes the production stack pulled from GHCR.
+- `infra/ansible/deploy.yml` deploys the production compose stack to the target host over SSH.
+
+### GitHub Secrets Used For Deploy
+
+- `ROBOT_SSH_KEY`
+- `ROBOT_SSH_KNOWN_HOSTS`
+- `ROBOT_SSH_HOST`
+- `ROBOT_SSH_PORT`
+- `ROBOT_SSH_USER`
+
+### Deployment Flow
+
+1. Publish images to GHCR with the `Publish Images` workflow.
+2. Trigger the `Deploy` workflow.
+3. GitHub Actions connects to the host as `robot`, uploads the production compose file, logs in to GHCR, pulls the latest images, and starts the stack.
 
 ## Authentication
 Certain REST endpoints require user authentication using Spring Security. Valid credentials must be provided to access these endpoints. To authenticate, use the `/login` endpoint and provide a valid username and password in the request body.
