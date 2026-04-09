@@ -7,7 +7,7 @@ A monorepo application for transaction management and debt calculation among use
 ```
 .
 ├── backend/          # Spring Boot REST API
-├── frontend/         # Frontend application (to be implemented)
+├── frontend/         # Frontend application
 └── docker-compose.yml # Docker orchestration
 ```
 
@@ -24,7 +24,8 @@ A monorepo application for transaction management and debt calculation among use
 ### Using Docker Compose (Recommended)
 1. Clone the project from the repository.
 2. Run `docker-compose up` from the root directory.
-3. The backend will be available at `http://localhost:8080`.
+3. The frontend will be available at `http://localhost:3000`.
+4. The backend API will be available at `http://localhost:8080`.
 
 ### Manual Setup
 1. Set up PostgreSQL and Neo4j databases.
@@ -76,7 +77,7 @@ For more details, see the backend directory.
 
 ## Frontend
 
-The frontend directory is ready for your frontend framework of choice (React, Vue, Angular, etc.).
+The frontend directory contains the React application.
 
 For more details, see the frontend directory.
 

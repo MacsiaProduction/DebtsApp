@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible
+
+      - name: Prepare SSH access
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.ROBOT_SSH_KEY }}" > ~/.ssh/robot_ed25519
+          chmod 600 ~/.ssh/robot_ed25519
+          printf '%s\n' "${{ secrets.ROBOT_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Write inventory
+        run: |
+          cat > infra/ansible/inventory.ini <<EOF
+          [debtsapp]
+          ${{ secrets.ROBOT_SSH_HOST }} ansible_user=${{ secrets.ROBOT_SSH_USER }} ansible_port=${{ secrets.ROBOT_SSH_PORT }} ansible_ssh_private_key_file=$HOME/.ssh/robot_ed25519
+          EOF
+
+      - name: Deploy application
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ansible-playbook infra/ansible/deploy.yml \
+            -i infra/ansible/inventory.ini \
+            -e ghcr_username="$GHCR_USERNAME" \
+            -e ghcr_token="$GHCR_TOKEN"

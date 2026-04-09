@@ -2,13 +2,11 @@ services:
   debts_bot_db:
     image: postgres:15-alpine
     container_name: debts_bot_db
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=debtsbot
       - POSTGRES_PASSWORD=debtsbot
       - POSTGRES_DB=debtsbot
-    ports:
-      - '5432:5432'
     volumes:
       - debts_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,12 +22,9 @@ services:
   debts_neo4j:
     image: neo4j:5-community
     container_name: debts_neo4j
-    restart: always
+    restart: unless-stopped
     environment:
       - NEO4J_AUTH=neo4j/debtsbot123
-    ports:
-      - '7474:7474'
-      - '7687:7687'
     volumes:
       - neo4j_data:/data
     healthcheck:
@@ -44,12 +39,9 @@ services:
           - debts-neo4j
 
   debts_bot:
+    image: ghcr.io/macsiaproduction/debtsapp-backend:latest
     container_name: debts_bot
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - '8080:8080'
+    restart: unless-stopped
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://debts-bot-db:5432/debtsbot
       - SPRING_DATASOURCE_USERNAME=debtsbot
@@ -69,16 +61,13 @@ services:
           - debts-bot
 
   debts_frontend:
+    image: ghcr.io/macsiaproduction/debtsapp-frontend:latest
     container_name: debts_frontend
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        REACT_APP_API_BASE: /api
-    ports:
-      - '3000:80'
+    restart: unless-stopped
     depends_on:
       - debts_bot
+    ports:
+      - '3000:80'
 
 volumes:
   debts_data:
