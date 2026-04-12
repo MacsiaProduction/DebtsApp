@@ -81,6 +81,7 @@ public class DebtsDAOTest {
         TransactionInfo transactionInfo = debtsDAO.addTransaction(chatId, user1.getId(), "user2", sum, comment);
         DebtInfo debtInfo = debtsDAO.getDebt(chatId, "user1", "user2");
 
+        assertThat(transactionInfo.id()).isNotNull();
         assertThat(transactionInfo.sender()).isEqualTo("user1");
         assertThat(transactionInfo.recipient()).isEqualTo("user2");
         assertThat(transactionInfo.sum()).isEqualTo(sum);
@@ -188,5 +189,32 @@ public class DebtsDAOTest {
     @Test
     public void testFindUserByNameNotFound() {
         assertThrows(UserNotFoundException.class, () -> debtsDAO.findUserByName("nonExistingUser"));
+    }
+
+    @Test
+    public void testDeleteLastTransaction() throws UserNotFoundException, ParseException {
+        debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "first");
+        debtsDAO.addTransaction(1L, user1.getId(), "user2", 200L, "second");
+
+        TransactionInfo deleted = debtsDAO.deleteLastTransaction(user1.getId());
+        DebtInfo debtInfo = debtsDAO.getDebt(1L, "user1", "user2");
+        var transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
+
+        assertThat(deleted.comment()).isEqualTo("second");
+        assertThat(debtInfo.sum()).isEqualTo(100L);
+        assertThat(transactions.getContent()).hasSize(1);
+        assertThat(transactions.getContent().get(0).comment()).isEqualTo("first");
+    }
+
+    @Test
+    public void testUpdateTransactionComment() throws UserNotFoundException, ParseException {
+        TransactionInfo transaction = debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "old");
+
+        TransactionInfo updated = debtsDAO.updateTransactionComment(user1.getId(), transaction.id(), "new");
+        var transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
+
+        assertThat(updated.id()).isEqualTo(transaction.id());
+        assertThat(updated.comment()).isEqualTo("new");
+        assertThat(transactions.getContent().get(0).comment()).isEqualTo("new");
     }
 }

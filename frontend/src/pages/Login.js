@@ -24,6 +24,7 @@ function Login() {
     try {
       const data = await login(username, password);
       localStorage.setItem('token', data.token);
+      localStorage.setItem('username', username);
       navigate('/transactions');
     } catch (err) {
       setError(err.message);

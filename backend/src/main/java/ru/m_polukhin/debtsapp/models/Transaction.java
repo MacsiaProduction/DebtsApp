@@ -44,4 +44,11 @@ public final class Transaction {
         if (recipientId.equals(senderId)) throw new UserNotFoundException("Me");
         if (sum < 0) throw new ParseException("Value of transaction should be positive");
     }
+
+    public Transaction withComment(String nextComment) throws ParseException, UserNotFoundException {
+        var updated = new Transaction(sum, senderId, recipientId, chatId, nextComment);
+        updated.setId(id);
+        updated.setTimestamp(timestamp);
+        return updated;
+    }
 }

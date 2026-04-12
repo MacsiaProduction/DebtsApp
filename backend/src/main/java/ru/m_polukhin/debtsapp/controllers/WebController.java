@@ -6,8 +6,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -91,6 +94,35 @@ public class WebController {
         try {
             dao.addTransaction(chatId, Long.valueOf(principal.getName()), toName, sum, comment);
             return new ResponseEntity<>("Transaction created successfully", HttpStatus.CREATED);
+        } catch (UserNotFoundException | ParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @DeleteMapping("transactions/last")
+    public ResponseEntity<TransactionInfo> deleteLastTransaction(@NotNull Principal principal) {
+        try {
+            var transaction = dao.deleteLastTransaction(Long.valueOf(principal.getName()));
+            return ResponseEntity.ok(transaction);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (UserNotFoundException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PatchMapping("transactions/{transactionId}/comment")
+    public ResponseEntity<TransactionInfo> updateTransactionComment(
+            @NotNull Principal principal,
+            @PathVariable Long transactionId,
+            @Size(max = 50) @RequestParam(defaultValue = "") String comment) {
+        try {
+            var transaction = dao.updateTransactionComment(Long.valueOf(principal.getName()), transactionId, comment);
+            return ResponseEntity.ok(transaction);
+        } catch (SecurityException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         } catch (UserNotFoundException | ParseException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }

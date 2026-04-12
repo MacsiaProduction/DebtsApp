@@ -35,7 +35,7 @@ import ru.m_polukhin.debtsapp.utils.CustomPageImpl;
 import java.security.Principal;
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -109,12 +109,13 @@ public class WebControllerTest {
         Page<TransactionInfo> response = objectMapper.readValue(content, new TypeReference<CustomPageImpl<TransactionInfo>>() {});
 
         List<TransactionInfo> expected = List.of(
-                new TransactionInfo("user1", "user2", 1L, 1L, "message10"),
-                new TransactionInfo("user1", "user3", 10L, 1L, "message11"),
-                new TransactionInfo("user3", "user1", 2L, 2L, "message20")
+                new TransactionInfo(null, "user1", "user2", 1L, 1L, "message10"),
+                new TransactionInfo(null, "user1", "user3", 10L, 1L, "message11"),
+                new TransactionInfo(null, "user3", "user1", 2L, 2L, "message20")
         );
         assertThat(response.getContent().size()).isEqualTo(expected.size());
-        assertThat(response.getContent().containsAll(expected)).isTrue();
+        assertThat(response.getContent().stream().map(TransactionInfo::comment).toList())
+                .containsAll(expected.stream().map(TransactionInfo::comment).toList());
     }
 
     @Test
@@ -189,5 +190,45 @@ public class WebControllerTest {
         var expected = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
 
         assertThat(response.getContent().containsAll(expected.getContent())).isTrue();
+    }
+
+    @Test
+    public void testDeleteLastTransaction() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/new")
+                        .principal(principalOf(user1))
+                        .param("chatId", "1")
+                        .param("toName", "user2")
+                        .param("sum", "500")
+                        .param("comment", "latest"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/transactions/last")
+                        .principal(principalOf(user1)))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.comment").value("latest"));
+
+        var debt = debtsDAO.getDebt(1L, "user1", "user2");
+        assertThat(debt.sum()).isEqualTo(1L);
+    }
+
+    @Test
+    public void testUpdateTransactionComment() throws Exception {
+        var transaction = debtsDAO.addTransaction(1L, user1.getId(), "user2", 11L, "old-comment");
+
+        mockMvc.perform(MockMvcRequestBuilders.patch("/transactions/{transactionId}/comment", transaction.id())
+                        .principal(principalOf(user1))
+                        .param("comment", "new-comment"))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(transaction.id()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.comment").value("new-comment"));
+
+        var content = mockMvc.perform(MockMvcRequestBuilders.get("/transactions/chat")
+                        .principal(principalOf(user1))
+                        .param("chatId", "1"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Page<TransactionInfo> response = objectMapper.readValue(content, new TypeReference<CustomPageImpl<TransactionInfo>>() {});
+        assertThat(response.getContent().stream().anyMatch(tx -> "new-comment".equals(tx.comment()))).isTrue();
     }
 }

@@ -12,6 +12,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
     Page<Transaction> findAllByChatIdAndSenderIdAndRecipientId(Long chatId, Long senderId, Long recipientId, Pageable pageable);
     Page<Transaction> findAllBySenderIdAndRecipientId(Long senderId, Long recipientId, Pageable pageable);
     Page<Transaction> findAllBySenderIdOrRecipientId(Long senderId, Long ChatId, Pageable pageable);
+    java.util.Optional<Transaction> findFirstBySenderIdOrderByTimestampDescIdDesc(Long senderId);
     void deleteAllByChatId(Long chatId);
     // только для тестов
     void deleteAll();

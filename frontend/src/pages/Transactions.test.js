@@ -8,15 +8,18 @@ jest.mock('../services/api');
 
 const mockedGetTransactions = api.getTransactions;
 const mockedGetTransactionsBetween = api.getTransactionsBetween;
+const mockedUpdateTransactionComment = api.updateTransactionComment;
+const mockedDeleteLastTransaction = api.deleteLastTransaction;
 
 describe('Transactions page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
   });
 
   test('loads and displays transactions list', async () => {
     mockedGetTransactions.mockResolvedValue([
-      { sender: 'A', recipient: 'B', sum: 100, comment: 'test', chatId: 1 },
+      { id: 1, sender: 'A', recipient: 'B', sum: 100, comment: 'test', chatId: 1 },
     ]);
 
     render(
@@ -37,7 +40,7 @@ describe('Transactions page', () => {
   test('applies between users filter', async () => {
     mockedGetTransactions.mockResolvedValue([]);
     mockedGetTransactionsBetween.mockResolvedValue([
-      { sender: 'User1', recipient: 'User2', sum: 10, comment: '', chatId: 5 },
+      { id: 2, sender: 'User1', recipient: 'User2', sum: 10, comment: '', chatId: 5 },
     ]);
 
     render(
@@ -80,5 +83,51 @@ describe('Transactions page', () => {
       expect(screen.getByText(/для фильтра укажите обоих пользователей/i)).toBeInTheDocument();
     });
     expect(mockedGetTransactionsBetween).not.toHaveBeenCalled();
+  });
+
+  test('updates transaction comment inline', async () => {
+    localStorage.setItem('username', 'User1');
+    mockedGetTransactions.mockResolvedValue([
+      { id: 42, sender: 'User1', recipient: 'User2', sum: 15, comment: 'old', chatId: 5 },
+    ]);
+    mockedUpdateTransactionComment.mockResolvedValue({});
+
+    render(
+      <MemoryRouter>
+        <Transactions />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /изменить комментарий/i }));
+    fireEvent.change(screen.getByLabelText(/комментарий транзакции 42/i), {
+      target: { value: 'new comment' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /сохранить/i }));
+
+    await waitFor(() => {
+      expect(mockedUpdateTransactionComment).toHaveBeenCalledWith(42, 'new comment');
+      expect(screen.getByText('new comment')).toBeInTheDocument();
+    });
+  });
+
+  test('deletes last transaction and reloads list', async () => {
+    mockedGetTransactions
+      .mockResolvedValueOnce([{ id: 1, sender: 'A', recipient: 'B', sum: 100, comment: 'first', chatId: 1 }])
+      .mockResolvedValueOnce([]);
+    mockedDeleteLastTransaction.mockResolvedValue({ comment: 'first' });
+
+    render(
+      <MemoryRouter>
+        <Transactions />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /удалить последнюю мою/i }));
+
+    await waitFor(() => {
+      expect(mockedDeleteLastTransaction).toHaveBeenCalled();
+      expect(mockedGetTransactions).toHaveBeenCalledTimes(2);
+      expect(screen.getByText(/последняя транзакция удалена/i)).toBeInTheDocument();
+    });
   });
 });

@@ -39,6 +39,35 @@ public class DebtsDAO {
         return coverTransaction(transaction);
     }
 
+    public TransactionInfo deleteLastTransaction(Long senderId) throws UserNotFoundException {
+        var transaction = transactionRepository.findFirstBySenderIdOrderByTimestampDescIdDesc(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("No transactions to delete"));
+
+        transactionRepository.deleteById(transaction.getId());
+        debtGraphService.increaseDebt(
+                transaction.getSenderId(),
+                transaction.getRecipientId(),
+                -transaction.getSum(),
+                transaction.getChatId()
+        );
+
+        return coverTransaction(transaction);
+    }
+
+    public TransactionInfo updateTransactionComment(Long senderId, Long transactionId, String comment)
+            throws UserNotFoundException, ParseException {
+        var transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
+        if (!transaction.getSenderId().equals(senderId)) {
+            throw new SecurityException("Only sender can edit transaction comment");
+        }
+
+        var updatedTransaction = transaction.withComment(comment);
+        transactionRepository.save(updatedTransaction);
+        return coverTransaction(updatedTransaction);
+    }
+
     public UserData addTelegramUser(Long telegramId, String telegramName) {
         return userRepository.findByTelegramId(telegramId).orElseGet(() -> {
             var user = new UserData(null, telegramName, telegramId, null, null);
@@ -175,6 +204,7 @@ public class DebtsDAO {
 
     private TransactionInfo coverTransaction(Transaction transaction) throws UserNotFoundException {
         return new TransactionInfo(
+                transaction.getId(),
                 getNameById(transaction.getSenderId()),
                 getNameById(transaction.getRecipientId()),
                 transaction.getSum(),

@@ -25,6 +25,7 @@ const parseResponse = async (response) => {
 
 const clearAuthAndRedirect = () => {
   localStorage.removeItem('token');
+  localStorage.removeItem('username');
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
@@ -91,6 +92,14 @@ export const addTransaction = ({ toName, sum, comment }) =>
     'POST',
   );
 
+export const updateTransactionComment = (transactionId, comment) =>
+  apiRequest(
+    `/transactions/${encodeURIComponent(transactionId)}/comment?comment=${encodeURIComponent(comment || '')}`,
+    'PATCH',
+  );
+
+export const deleteLastTransaction = () => apiRequest('/transactions/last', 'DELETE');
+
 export const getTransactionsBetween = async (sender, recipient, page = 0, size = 50) =>
   normalizeCollection(
     await apiRequest(
@@ -102,4 +111,3 @@ export const getTransactionsBetween = async (sender, recipient, page = 0, size =
 
 export const getDebts = async (page = 0, size = 50) =>
   normalizeCollection(await apiRequest(`/debts?page=${page}&size=${size}`));
-
