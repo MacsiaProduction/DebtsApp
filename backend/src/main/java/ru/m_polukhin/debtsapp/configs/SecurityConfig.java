@@ -80,7 +80,9 @@ public class SecurityConfig {
                 "http://127.0.0.1:*",
                 "http://node.macsia.fun:*",
                 "https://node.macsia.fun:*",
-                "http://84.201.153.123:*"
+                "http://84.201.153.123:*",
+                "http://89.169.171.86:*",
+                "https://89.169.171.86:*"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

@@ -17,6 +17,12 @@
         dest: "{{ deploy_dir }}/docker-compose.yml"
         mode: "0644"
 
+    - name: Upload frontend nginx config
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../deploy/frontend.nginx.ssl.conf"
+        dest: "{{ deploy_dir }}/frontend.nginx.ssl.conf"
+        mode: "0644"
+
     - name: Log in to GHCR
       ansible.builtin.shell: |
         set -eu
