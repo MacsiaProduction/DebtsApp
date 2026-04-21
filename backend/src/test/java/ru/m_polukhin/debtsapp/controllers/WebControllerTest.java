@@ -193,16 +193,10 @@ public class WebControllerTest {
     }
 
     @Test
-    public void testDeleteLastTransaction() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.post("/new")
-                        .principal(principalOf(user1))
-                        .param("chatId", "1")
-                        .param("toName", "user2")
-                        .param("sum", "500")
-                        .param("comment", "latest"))
-                .andExpect(status().isCreated());
+    public void testDeleteTransaction() throws Exception {
+        var transaction = debtsDAO.addTransaction(1L, user1.getId(), "user2", 500L, "latest");
 
-        mockMvc.perform(MockMvcRequestBuilders.delete("/transactions/last")
+        mockMvc.perform(MockMvcRequestBuilders.delete("/transactions/{transactionId}", transaction.id())
                         .principal(principalOf(user1)))
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.comment").value("latest"));
@@ -215,7 +209,7 @@ public class WebControllerTest {
     public void testUpdateTransactionComment() throws Exception {
         var transaction = debtsDAO.addTransaction(1L, user1.getId(), "user2", 11L, "old-comment");
 
-        mockMvc.perform(MockMvcRequestBuilders.patch("/transactions/{transactionId}/comment", transaction.id())
+        mockMvc.perform(MockMvcRequestBuilders.post("/transactions/{transactionId}/comment", transaction.id())
                         .principal(principalOf(user1))
                         .param("comment", "new-comment"))
                 .andExpect(status().isOk())

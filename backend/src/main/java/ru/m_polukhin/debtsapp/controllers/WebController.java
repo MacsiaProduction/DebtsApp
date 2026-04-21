@@ -99,10 +99,12 @@ public class WebController {
         }
     }
 
-    @DeleteMapping("transactions/last")
-    public ResponseEntity<TransactionInfo> deleteLastTransaction(@NotNull Principal principal) {
+    @DeleteMapping("transactions/{transactionId}")
+    public ResponseEntity<TransactionInfo> deleteTransaction(
+            @NotNull Principal principal,
+            @PathVariable Long transactionId) {
         try {
-            var transaction = dao.deleteLastTransaction(Long.valueOf(principal.getName()));
+            var transaction = dao.deleteTransaction(Long.valueOf(principal.getName()), transactionId);
             return ResponseEntity.ok(transaction);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
@@ -111,7 +113,7 @@ public class WebController {
         }
     }
 
-    @PatchMapping("transactions/{transactionId}/comment")
+    @PostMapping("transactions/{transactionId}/comment")
     public ResponseEntity<TransactionInfo> updateTransactionComment(
             @NotNull Principal principal,
             @PathVariable Long transactionId,

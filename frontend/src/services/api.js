@@ -95,10 +95,11 @@ export const addTransaction = ({ toName, sum, comment }) =>
 export const updateTransactionComment = (transactionId, comment) =>
   apiRequest(
     `/transactions/${encodeURIComponent(transactionId)}/comment?comment=${encodeURIComponent(comment || '')}`,
-    'PATCH',
+    'POST',
   );
 
-export const deleteLastTransaction = () => apiRequest('/transactions/last', 'DELETE');
+export const deleteTransaction = (transactionId) =>
+  apiRequest(`/transactions/${encodeURIComponent(transactionId)}`, 'DELETE');
 
 export const getTransactionsBetween = async (sender, recipient, page = 0, size = 50) =>
   normalizeCollection(

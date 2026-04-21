@@ -192,18 +192,18 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testDeleteLastTransaction() throws UserNotFoundException, ParseException {
-        debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "first");
+    public void testDeleteTransaction() throws UserNotFoundException, ParseException {
+        TransactionInfo first = debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "first");
         debtsDAO.addTransaction(1L, user1.getId(), "user2", 200L, "second");
 
-        TransactionInfo deleted = debtsDAO.deleteLastTransaction(user1.getId());
+        TransactionInfo deleted = debtsDAO.deleteTransaction(user1.getId(), first.id());
         DebtInfo debtInfo = debtsDAO.getDebt(1L, "user1", "user2");
         var transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
 
-        assertThat(deleted.comment()).isEqualTo("second");
-        assertThat(debtInfo.sum()).isEqualTo(100L);
+        assertThat(deleted.comment()).isEqualTo("first");
+        assertThat(debtInfo.sum()).isEqualTo(200L);
         assertThat(transactions.getContent()).hasSize(1);
-        assertThat(transactions.getContent().get(0).comment()).isEqualTo("first");
+        assertThat(transactions.getContent().get(0).comment()).isEqualTo("second");
     }
 
     @Test

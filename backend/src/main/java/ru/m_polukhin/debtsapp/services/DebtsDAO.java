@@ -42,6 +42,12 @@ public class DebtsDAO {
     public TransactionInfo deleteLastTransaction(Long senderId) throws UserNotFoundException {
         var transaction = transactionRepository.findFirstBySenderIdOrderByTimestampDescIdDesc(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("No transactions to delete"));
+        return deleteTransaction(senderId, transaction.getId());
+    }
+
+    public TransactionInfo deleteTransaction(Long senderId, Long transactionId) throws UserNotFoundException {
+        var transaction = transactionRepository.findByIdAndSenderId(transactionId, senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
 
         transactionRepository.deleteById(transaction.getId());
         debtGraphService.increaseDebt(

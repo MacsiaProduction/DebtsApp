@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Table, Spinner, Alert, Form, Row, Col, Button, Card } from 'react-bootstrap';
 import {
   addTransaction,
-  deleteLastTransaction,
+  deleteTransaction,
   getTransactions,
   getTransactionsBetween,
   updateTransactionComment,
@@ -36,8 +36,13 @@ function Transactions() {
         : await getTransactions();
       setTransactions(data);
     } catch (err) {
-      setError(err.message);
-      setTransactions([]);
+      const message = err.message || '';
+      if (/not found|не найден/i.test(message)) {
+        setTransactions([]);
+      } else {
+        setError(message);
+        setTransactions([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -136,19 +141,19 @@ function Transactions() {
     }
   };
 
-  const handleDeleteLast = async () => {
+  const handleDeleteTransaction = async (transactionId) => {
     setSubmittingAction(true);
     setError('');
     setActionMessage('');
     setCreateSuccess('');
     try {
-      const deleted = await deleteLastTransaction();
+      const deleted = await deleteTransaction(transactionId);
       cancelEditing();
       await loadData(sender, recipient);
       setActionMessage(
         deleted?.comment
-          ? `Последняя транзакция удалена: ${deleted.comment}`
-          : 'Последняя транзакция удалена.',
+          ? `Транзакция удалена: ${deleted.comment}`
+          : 'Транзакция удалена.',
       );
     } catch (err) {
       setError(err.message);
@@ -249,16 +254,6 @@ function Transactions() {
               Сбросить
             </Button>
           </Col>
-          <Col xs="auto" className="mt-3">
-            <Button
-              variant="outline-danger"
-              type="button"
-              onClick={handleDeleteLast}
-              disabled={submittingAction}
-            >
-              Удалить последнюю мою
-            </Button>
-          </Col>
         </Row>
       </Form>
       {!transactions.length && !loading && !error && !createSuccess && (
@@ -315,14 +310,25 @@ function Transactions() {
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => startEditing(tx)}
-                    disabled={submittingAction || (currentUsername && tx.sender !== currentUsername)}
-                  >
-                    Изменить комментарий
-                  </Button>
+                  <>
+                    <Button
+                      className="me-2"
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => startEditing(tx)}
+                      disabled={submittingAction || (currentUsername && tx.sender !== currentUsername)}
+                    >
+                      Изменить комментарий
+                    </Button>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleDeleteTransaction(tx.id)}
+                      disabled={submittingAction || (currentUsername && tx.sender !== currentUsername)}
+                    >
+                      Удалить
+                    </Button>
+                  </>
                 )}
               </td>
             </tr>
