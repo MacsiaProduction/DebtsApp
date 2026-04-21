@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Transactions from './pages/Transactions';
 import Debts from './pages/Debts';
-import NewTransaction from './pages/NewTransaction';
 import NavBar from './components/NavBar';
 
 function PrivateRoute({ children }) {
@@ -30,14 +29,6 @@ function App() {
           element={
             <PrivateRoute>
               <Debts />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/new"
-          element={
-            <PrivateRoute>
-              <NewTransaction />
             </PrivateRoute>
           }
         />

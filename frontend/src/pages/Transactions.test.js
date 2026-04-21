@@ -6,6 +6,7 @@ import Transactions from './Transactions';
 
 jest.mock('../services/api');
 
+const mockedAddTransaction = api.addTransaction;
 const mockedGetTransactions = api.getTransactions;
 const mockedGetTransactionsBetween = api.getTransactionsBetween;
 const mockedUpdateTransactionComment = api.updateTransactionComment;
@@ -15,6 +16,36 @@ describe('Transactions page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+  });
+
+  test('creates transaction from transactions page', async () => {
+    mockedGetTransactions.mockResolvedValue([]);
+    mockedAddTransaction.mockResolvedValue({});
+
+    render(
+      <MemoryRouter>
+        <Transactions />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(await screen.findByLabelText(/кому \(имя получателя\)/i), {
+      target: { value: 'UserB' },
+    });
+    fireEvent.change(screen.getByLabelText(/^сумма$/i), { target: { value: '150' } });
+    fireEvent.change(screen.getByLabelText(/^комментарий$/i), {
+      target: { value: 'For dinner' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /создать транзакцию/i }));
+
+    await waitFor(() => {
+      expect(mockedAddTransaction).toHaveBeenCalledWith({
+        toName: 'UserB',
+        sum: '150',
+        comment: 'For dinner',
+      });
+      expect(screen.getByText(/транзакция добавлена/i)).toBeInTheDocument();
+    });
   });
 
   test('loads and displays transactions list', async () => {

@@ -29,9 +29,6 @@ function NavBar() {
                 <Nav.Link as={Link} to="/debts">
                   Долги
                 </Nav.Link>
-                <Nav.Link as={Link} to="/new">
-                  Добавить
-                </Nav.Link>
               </>
             )}
           </Nav>

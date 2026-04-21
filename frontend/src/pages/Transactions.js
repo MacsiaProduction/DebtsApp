@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Table, Spinner, Alert, Form, Row, Col, Button } from 'react-bootstrap';
+import { Container, Table, Spinner, Alert, Form, Row, Col, Button, Card } from 'react-bootstrap';
 import {
+  addTransaction,
   deleteLastTransaction,
   getTransactions,
   getTransactionsBetween,
@@ -17,6 +18,12 @@ function Transactions() {
   const [editingId, setEditingId] = useState(null);
   const [editingComment, setEditingComment] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
+  const [newTransactionForm, setNewTransactionForm] = useState({
+    toName: '',
+    sum: '',
+    comment: '',
+  });
+  const [createSuccess, setCreateSuccess] = useState('');
   const currentUsername = localStorage.getItem('username');
 
   const loadData = async (nextSender = '', nextRecipient = '') => {
@@ -41,9 +48,11 @@ function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleFilterSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setActionMessage('');
+    setCreateSuccess('');
     const hasSender = sender.trim().length > 0;
     const hasRecipient = recipient.trim().length > 0;
 
@@ -55,11 +64,42 @@ function Transactions() {
     await loadData(sender, recipient);
   };
 
-  const handleReset = async () => {
+  const handleFilterReset = async () => {
     setSender('');
     setRecipient('');
     setActionMessage('');
+    setCreateSuccess('');
     await loadData();
+  };
+
+  const handleNewTransactionChange = (e) => {
+    setNewTransactionForm((currentForm) => ({
+      ...currentForm,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleCreateTransaction = async (e) => {
+    e.preventDefault();
+    setSubmittingAction(true);
+    setError('');
+    setActionMessage('');
+    setCreateSuccess('');
+
+    try {
+      await addTransaction(newTransactionForm);
+      setCreateSuccess('Транзакция добавлена.');
+      setNewTransactionForm({
+        toName: '',
+        sum: '',
+        comment: '',
+      });
+      await loadData(sender, recipient);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   const startEditing = (tx) => {
@@ -67,6 +107,7 @@ function Transactions() {
     setEditingComment(tx.comment || '');
     setError('');
     setActionMessage('');
+    setCreateSuccess('');
   };
 
   const cancelEditing = () => {
@@ -78,6 +119,7 @@ function Transactions() {
     setSubmittingAction(true);
     setError('');
     setActionMessage('');
+    setCreateSuccess('');
     try {
       await updateTransactionComment(transactionId, editingComment);
       setTransactions((currentTransactions) =>
@@ -98,6 +140,7 @@ function Transactions() {
     setSubmittingAction(true);
     setError('');
     setActionMessage('');
+    setCreateSuccess('');
     try {
       const deleted = await deleteLastTransaction();
       cancelEditing();
@@ -127,7 +170,56 @@ function Transactions() {
       <h2>Транзакции</h2>
       {error && <Alert variant="danger">{error}</Alert>}
       {actionMessage && <Alert variant="success">{actionMessage}</Alert>}
-      <Form className="mb-4" onSubmit={handleSubmit}>
+      {createSuccess && <Alert variant="success">{createSuccess}</Alert>}
+      <Card className="mb-4">
+        <Card.Body>
+          <Card.Title>Новая транзакция</Card.Title>
+          <Form onSubmit={handleCreateTransaction}>
+            <Row className="g-3">
+              <Col xs={12} md={4}>
+                <Form.Label htmlFor="newToName">Кому (имя получателя)</Form.Label>
+                <Form.Control
+                  id="newToName"
+                  type="text"
+                  name="toName"
+                  value={newTransactionForm.toName}
+                  onChange={handleNewTransactionChange}
+                  required
+                />
+              </Col>
+              <Col xs={12} md={3}>
+                <Form.Label htmlFor="newSum">Сумма</Form.Label>
+                <Form.Control
+                  id="newSum"
+                  type="number"
+                  name="sum"
+                  value={newTransactionForm.sum}
+                  onChange={handleNewTransactionChange}
+                  required
+                  min="1"
+                />
+              </Col>
+              <Col xs={12} md={5}>
+                <Form.Label htmlFor="newComment">Комментарий</Form.Label>
+                <Form.Control
+                  id="newComment"
+                  as="textarea"
+                  rows={1}
+                  name="comment"
+                  value={newTransactionForm.comment}
+                  onChange={handleNewTransactionChange}
+                />
+              </Col>
+              <Col xs="auto">
+                <Button type="submit" disabled={submittingAction}>
+                  Создать транзакцию
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+        </Card.Body>
+      </Card>
+      <Form className="mb-4" onSubmit={handleFilterSubmit}>
         <Row className="align-items-end g-2">
           <Col xs={12} md={4}>
             <Form.Label htmlFor="txSender">Отправитель (имя)</Form.Label>
@@ -153,7 +245,7 @@ function Transactions() {
             </Button>
           </Col>
           <Col xs="auto" className="mt-3">
-            <Button variant="outline-secondary" type="button" onClick={handleReset}>
+            <Button variant="outline-secondary" type="button" onClick={handleFilterReset}>
               Сбросить
             </Button>
           </Col>
@@ -169,7 +261,7 @@ function Transactions() {
           </Col>
         </Row>
       </Form>
-      {!transactions.length && !loading && !error && (
+      {!transactions.length && !loading && !error && !createSuccess && (
         <Alert variant="info">Нет транзакций для отображения.</Alert>
       )}
       <Table striped bordered hover responsive>
