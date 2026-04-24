@@ -114,14 +114,34 @@ jobs:
         run: terraform -chdir=infra/terraform/yandex init
 
       - name: Terraform apply
-        run: terraform -chdir=infra/terraform/yandex apply -auto-approve
+        id: terraform_apply
+        run: |
+          set +e
+          terraform -chdir=infra/terraform/yandex apply -auto-approve 2>&1 | tee /tmp/terraform-apply.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "existing_vm=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if grep -q 'AlreadyExists desc = Instance with name' /tmp/terraform-apply.log; then
+            echo "existing_vm=true" >> "$GITHUB_OUTPUT"
+            echo "VM already exists, skipping the rest of provisioning workflow."
+            exit 0
+          fi
+
+          exit "$status"
 
       - name: Render Ansible inventory
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         run: |
           SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
           ./scripts/render-ansible-inventory.sh infra/terraform/yandex > infra/ansible/inventory.ini
 
       - name: Trust new host key
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         run: |
           host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
           for _ in $(seq 1 30); do
@@ -133,6 +153,7 @@ jobs:
           exit 1
 
       - name: Wait for SSH
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         run: |
           host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
           for _ in $(seq 1 30); do
@@ -144,6 +165,7 @@ jobs:
           exit 1
 
       - name: Write deploy secrets file
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         env:
           GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
@@ -174,6 +196,7 @@ jobs:
           PY
 
       - name: Bootstrap k3s
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         run: |
           ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
           ansible-playbook infra/ansible/bootstrap-k3s.yml \
@@ -181,6 +204,7 @@ jobs:
             -e app_domain="${{ inputs.app_domain }}"
 
       - name: Deploy DebtsApp
+        if: steps.terraform_apply.outputs.existing_vm != 'true'
         run: |
           ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
           ansible-playbook infra/ansible/deploy-app.yml \
@@ -189,7 +213,7 @@ jobs:
             -e acme_email="${{ inputs.acme_email }}"
 
       - name: Trust old host key
-        if: ${{ inputs.decommission_old_host && inputs.old_host != '' }}
+        if: ${{ steps.terraform_apply.outputs.existing_vm != 'true' && inputs.decommission_old_host && inputs.old_host != '' }}
         run: |
           test -n "${{ secrets.OLD_HOST_SSH_PRIVATE_KEY }}"
           printf '%s\n' "${{ secrets.OLD_HOST_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_old_host
@@ -197,7 +221,7 @@ jobs:
           ssh-keyscan -H "${{ inputs.old_host }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Decommission old host
-        if: ${{ inputs.decommission_old_host && inputs.old_host != '' }}
+        if: ${{ steps.terraform_apply.outputs.existing_vm != 'true' && inputs.decommission_old_host && inputs.old_host != '' }}
         run: |
           cat > infra/ansible/inventory.old.ini <<EOF
           [old_host]
