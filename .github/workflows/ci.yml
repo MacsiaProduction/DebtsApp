@@ -79,6 +79,7 @@ jobs:
   frontend-test:
     name: Frontend — Test
     runs-on: ubuntu-latest
+    needs: backend-build
     defaults:
       run:
         working-directory: frontend
