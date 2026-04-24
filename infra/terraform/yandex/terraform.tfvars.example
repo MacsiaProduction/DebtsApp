@@ -14,4 +14,4 @@ acme_email = "macsia.production@gmail.com"
 # vm_memory_gb          = 4
 # vm_core_fraction      = 50
 # boot_disk_size_gb     = 50
-# boot_disk_type        = "network-ssd"
+# boot_disk_type        = "network-hdd"

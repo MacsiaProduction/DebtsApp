@@ -93,7 +93,7 @@ variable "boot_disk_size_gb" {
 variable "boot_disk_type" {
   description = "Boot disk type."
   type        = string
-  default     = "network-ssd"
+  default     = "network-hdd"
 }
 
 variable "preemptible" {

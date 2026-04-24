@@ -18,7 +18,7 @@ def main() -> int:
         "vm_memory_gb": int(os.environ.get("VM_MEMORY_GB", "4")),
         "vm_core_fraction": int(os.environ.get("VM_CORE_FRACTION", "50")),
         "boot_disk_size_gb": int(os.environ.get("BOOT_DISK_SIZE_GB", "50")),
-        "boot_disk_type": os.environ.get("BOOT_DISK_TYPE", "network-ssd"),
+        "boot_disk_type": os.environ.get("BOOT_DISK_TYPE", "network-hdd"),
         "app_domain": os.environ["APP_DOMAIN"],
         "acme_email": os.environ["ACME_EMAIL"],
     }
