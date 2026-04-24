@@ -6,6 +6,15 @@
   vars:
     swap_file_path: /swapfile
     swap_file_size_mb: 4096
+    # На Ubuntu 24.04 flannel требует загруженных модулей ядра и включенного forwarding.
+    kernel_modules:
+      - br_netfilter
+      - overlay
+    required_sysctls:
+      - { key: net.bridge.bridge-nf-call-iptables,  value: "1" }
+      - { key: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+      - { key: net.ipv4.ip_forward,                 value: "1" }
+      - { key: vm.swappiness,                       value: "10" }
 
   tasks:
     - name: Install base packages
@@ -18,17 +27,26 @@
         update_cache: true
         cache_valid_time: 3600
 
-    # На Ubuntu 24.04 nftables-бэкенд iptables иногда ломает kube-proxy/flannel.
-    - name: Force legacy iptables backend
+    - name: Load kernel modules required by k3s/flannel
       ansible.builtin.shell: |
         set -e
-        update-alternatives --set iptables /usr/sbin/iptables-legacy || true
-        update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
+        modprobe {{ item }}
+        echo "{{ item }}" > /etc/modules-load.d/{{ item }}.conf
       args:
         executable: /bin/bash
+      loop: "{{ kernel_modules }}"
       changed_when: false
 
-    - name: Ensure swap file exists
+    - name: Apply sysctls required by k3s/flannel
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: true
+        state: present
+        reload: true
+      loop: "{{ required_sysctls }}"
+
+    - name: Ensure swap file is enabled
       ansible.builtin.shell: |
         set -euo pipefail
         if swapon --show=NAME --noheadings | grep -qx "{{ swap_file_path }}"; then
@@ -40,24 +58,10 @@
           mkswap "{{ swap_file_path }}"
         fi
         swapon "{{ swap_file_path }}"
+        grep -q "^{{ swap_file_path }} " /etc/fstab || echo "{{ swap_file_path }} none swap sw 0 0" >> /etc/fstab
       args:
         executable: /bin/bash
-      register: swap_setup
-      changed_when: swap_setup.stdout != ""
-
-    - name: Persist swap file in fstab
-      ansible.posix.mount:
-        name: none
-        src: "{{ swap_file_path }}"
-        fstype: swap
-        opts: sw
-        state: present
-
-    - name: Set low swappiness
-      ansible.posix.sysctl:
-        name: vm.swappiness
-        value: "10"
-        state: present
+      changed_when: false
 
     - name: Install k3s
       ansible.builtin.shell: |
@@ -106,21 +110,41 @@
       failed_when: false
       changed_when: false
 
-    - name: Diagnose node failure
+    - name: Collect diagnostics on node failure
       when: node_ready.rc is defined and node_ready.rc != 0
       ansible.builtin.shell: |
         set +e
         export KUBECONFIG="{{ k3s_kubeconfig }}"
         echo "=== kubectl get nodes -o wide ==="
         kubectl get nodes -o wide
+        echo
         echo "=== kubectl describe node ==="
         kubectl describe node
-        echo "=== kubectl -n kube-system get pods ==="
-        kubectl -n kube-system get pods
-        echo "=== journalctl -u k3s --no-pager -n 200 ==="
-        journalctl -u k3s --no-pager -n 200
+        echo
+        echo "=== kubectl -n kube-system get pods -o wide ==="
+        kubectl -n kube-system get pods -o wide
+        echo
+        echo "=== kubectl -n kube-system describe pods ==="
+        kubectl -n kube-system describe pods
+        echo
+        echo "=== /etc/cni/net.d ==="
+        ls -la /etc/cni/net.d 2>/dev/null || echo "(missing)"
+        cat /etc/cni/net.d/* 2>/dev/null || true
+        echo
+        echo "=== systemctl status k3s (no pager) ==="
+        systemctl status k3s --no-pager || true
+        echo
+        echo "=== journalctl -u k3s --no-pager -n 400 ==="
+        journalctl -u k3s --no-pager -n 400
       args:
         executable: /bin/bash
+      register: node_diagnostics
+      changed_when: false
+
+    - name: Print diagnostics
+      when: node_ready.rc is defined and node_ready.rc != 0
+      ansible.builtin.debug:
+        var: node_diagnostics.stdout_lines
 
     - name: Fail if node is not ready
       when: node_ready.rc is defined and node_ready.rc != 0
