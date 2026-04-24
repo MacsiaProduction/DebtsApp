@@ -4,7 +4,8 @@ This repo keeps the full lab-2 VM deploy path in git:
 
 - [`infra/terraform/yandex/`](infra/terraform/yandex) provisions the Ubuntu VM in Yandex Cloud.
 - [`infra/ansible/`](infra/ansible) installs Docker and Docker Compose, copies the repo to the VM, and starts the application stack.
-- [`docker-compose.yml`](docker-compose.yml) defines PostgreSQL, Neo4j, backend, and frontend services.
+- [`docker-compose.yml`](docker-compose.yml) defines Caddy, PostgreSQL, Neo4j, backend, and frontend services.
+- [`infra/caddy/Caddyfile`](infra/caddy/Caddyfile) configures HTTPS for [`debtsapp2.macsia.fun`](infra/README.md:7).
 
 The Terraform VM bootstrap creates the primary admin account as `macsia`, enables SSH key and password login for that account, and keeps direct root SSH login disabled.
 
@@ -19,6 +20,8 @@ Edit:
 
 - [`infra/terraform/yandex/terraform.tfvars`](infra/terraform/yandex/terraform.tfvars)
 - [`infra/ansible/vars/deploy-secrets.yml`](infra/ansible/vars/deploy-secrets.yml)
+
+Set [`app_domain`](infra/terraform/yandex/terraform.tfvars.example:9) to `debtsapp2.macsia.fun` and point its DNS `A` record to the VM public IP before expecting HTTPS issuance to succeed.
 
 Terraform uses the repo-local mirror config in [`infra/terraform/terraformrc`](infra/terraform/terraformrc), so start with:
 
@@ -47,18 +50,27 @@ make render-inventory
 make deploy
 ```
 
-[`make deploy`](../Makefile) runs [`infra/ansible/site.yml`](infra/ansible/site.yml), which installs Docker on the VM, synchronizes the repository, writes the deployment `.env`, and starts the stack with Docker Compose.
+[`make deploy`](../Makefile) runs [`infra/ansible/site.yml`](infra/ansible/site.yml), which installs Docker on the VM, synchronizes the repository, writes the deployment [`.env`](infra/ansible/deploy-docker-compose.yml:104), and starts the stack with Docker Compose.
 
-## 4. Access the application
+## 4. DNS and HTTPS
+
+Get the VM public IP:
 
 ```bash
 terraform -chdir=infra/terraform/yandex output -raw public_ip
 ```
 
-Use the VM public IP with these ports:
+Then:
 
-- Frontend: `http://<public_ip>:3000`
-- Backend: `http://<public_ip>:8080`
+- point `debtsapp2.macsia.fun` to that IP
+- ensure inbound ports `80` and `443` are reachable from the internet
+- rerun [`make deploy`](../Makefile) if DNS was not ready during the first certificate attempt
+
+Caddy will automatically obtain and renew the Let's Encrypt certificate for [`debtsapp2.macsia.fun`](infra/caddy/Caddyfile:5).
+
+## 5. Access the application
+
+- App: `https://debtsapp2.macsia.fun`
 - PostgreSQL: `<public_ip>:5432`
 - Neo4j Browser: `http://<public_ip>:7474`
 - Neo4j Bolt: `<public_ip>:7687`
@@ -77,5 +89,11 @@ The manual deploy workflow expects:
 - `NEO4J_PASSWORD`
 - `JWT_SECRET`
 - `BOT_TOKEN` optionally
+
+Workflow defaults:
+
+- VM name: `debtsapp-docker`
+- App domain: `debtsapp2.macsia.fun`
+- HTTPS email: `macsia.production@gmail.com`
 
 Keep only example values in git. Real secrets stay ignored.

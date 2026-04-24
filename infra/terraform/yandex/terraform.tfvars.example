@@ -6,7 +6,7 @@ ssh_user       = "macsia"
 ssh_public_key = "ssh-ed25519 AAAA... replace-me"
 admin_password_hash = "$6$replace-me"
 
-app_domain = "debtsapp.macsia.fun"
+app_domain = "debtsapp2.macsia.fun"
 acme_email = "macsia.production@gmail.com"
 
 # Optional overrides:

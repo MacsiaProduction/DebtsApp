@@ -1,4 +1,21 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: debts_caddy
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-debtsapp2.macsia.fun}
+      ACME_EMAIL: ${ACME_EMAIL:-macsia.production@gmail.com}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - debts_frontend
+
   debts_bot_db:
     image: postgres:15-alpine
     container_name: debts_bot_db
@@ -48,8 +65,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - '8080:8080'
+    expose:
+      - '8080'
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://debts-bot-db:5432/${POSTGRES_DB:-debtsbot}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-debtsbot}
@@ -77,12 +94,16 @@ services:
       dockerfile: Dockerfile
       args:
         REACT_APP_API_BASE: ${REACT_APP_API_BASE:-/api}
-    ports:
-      - '3000:80'
+    expose:
+      - '80'
     depends_on:
       - debts_bot
 
 volumes:
+  caddy_data:
+    external: false
+  caddy_config:
+    external: false
   debts_data:
     external: false
   neo4j_data:

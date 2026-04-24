@@ -6,10 +6,10 @@ on:
       app_domain:
         description: Public DNS name for DebtsApp
         required: false
-        default: debtsapp.macsia.fun
+        default: debtsapp2.macsia.fun
         type: string
       acme_email:
-        description: Contact email stored in Terraform variables
+        description: Contact email used for HTTPS certificates
         required: false
         default: macsia.production@gmail.com
         type: string

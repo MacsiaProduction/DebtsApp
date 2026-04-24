@@ -6,7 +6,7 @@ DebtsApp is a monorepo with a Spring Boot backend, a React frontend, and repo-ow
 
 The maintained deployment path is:
 
-`Terraform (Yandex VM) -> Ansible install Docker -> Docker Compose`
+`Terraform (Yandex VM) -> Ansible install Docker -> Docker Compose -> Caddy HTTPS`
 
 Use [infra/README.md](infra/README.md) when deploying the app to a VM.
 
@@ -15,7 +15,7 @@ Use [infra/README.md](infra/README.md) when deploying the app to a VM.
 ```text
 backend/              Spring Boot API
 frontend/             React app
-infra/                Terraform + Ansible deployment
+infra/                Terraform + Ansible deployment + Caddy config
 docker-compose.yml    Local and VM Docker Compose stack
 ```
 
@@ -37,8 +37,9 @@ make deploy
 
 ## Runtime Notes
 
-- Frontend is available on port `3000`.
-- Backend is available on port `8080`.
+- Public app URL is [`https://debtsapp2.macsia.fun`](README.md:40).
+- HTTPS is terminated by [`Caddy`](infra/caddy/Caddyfile:1), which automatically requests and renews Let's Encrypt certificates.
+- Frontend and backend are served behind the same domain; [`/api`](frontend/nginx.conf:8) is proxied to the backend.
 - PostgreSQL is available on port `5432`.
 - Neo4j is available on ports `7474` and `7687`.
 - Backend unit tests run with `./gradlew test`; Docker-backed persistence coverage runs with `./gradlew integrationTest`.

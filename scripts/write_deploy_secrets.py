@@ -11,6 +11,8 @@ def yaml_quote(value: str) -> str:
 
 def main() -> int:
     lines = [
+        f"app_domain: {yaml_quote(os.environ.get('APP_DOMAIN', 'debtsapp2.macsia.fun'))}",
+        f"acme_email: {yaml_quote(os.environ.get('ACME_EMAIL', 'macsia.production@gmail.com'))}",
         f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",
         f"neo4j_password: {yaml_quote(os.environ['NEO4J_PASSWORD'])}",
         f"jwt_secret: {yaml_quote(os.environ['JWT_SECRET'])}",

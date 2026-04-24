@@ -47,6 +47,8 @@ runs:
     - name: Write deploy secrets
       shell: bash
       env:
+        APP_DOMAIN: ${{ inputs.app_domain }}
+        ACME_EMAIL: ${{ inputs.acme_email }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
         JWT_SECRET: ${{ inputs.jwt_secret }}
