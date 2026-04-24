@@ -18,7 +18,6 @@
       - 90-monitoring.yaml.j2
     helm_repos:
       - { name: jetstack,             url: "https://charts.jetstack.io" }
-      - { name: metrics-server,       url: "https://kubernetes-sigs.github.io/metrics-server/" }
       - { name: prometheus-community, url: "https://prometheus-community.github.io/helm-charts" }
     rollout_waits:
       - { kind: deployment,  name: cert-manager,            ns: cert-manager }
@@ -62,7 +61,13 @@
         helm upgrade --install cert-manager jetstack/cert-manager
         --namespace cert-manager --create-namespace --set crds.enabled=true
 
-    - name: Install metrics-server
+    - name: Check whether metrics-server already exists
+      ansible.builtin.command: kubectl -n kube-system get deployment metrics-server
+      register: metrics_server_status
+      changed_when: false
+      failed_when: metrics_server_status.rc not in [0, 1]
+
+    - name: Install metrics-server when missing
       ansible.builtin.command:
         argv:
           - helm
@@ -76,6 +81,7 @@
           - args[0]=--kubelet-insecure-tls
           - --set
           - args[1]=--kubelet-preferred-address-types=InternalIP\,ExternalIP\,Hostname
+      when: metrics_server_status.rc == 1
 
     - name: Render ClusterIssuer manifest
       ansible.builtin.template:

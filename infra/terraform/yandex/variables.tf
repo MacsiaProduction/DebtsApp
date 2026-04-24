@@ -75,7 +75,13 @@ variable "vm_cores" {
 variable "vm_memory_gb" {
   description = "RAM size in GB."
   type        = number
-  default     = 4
+  default     = 8
+}
+
+variable "vm_core_fraction" {
+  description = "Guaranteed CPU fraction percentage."
+  type        = number
+  default     = 50
 }
 
 variable "boot_disk_size_gb" {

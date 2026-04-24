@@ -21,8 +21,9 @@ resource "yandex_compute_instance" "debtsapp" {
   allow_stopping_for_update = true
 
   resources {
-    cores  = var.vm_cores
-    memory = var.vm_memory_gb
+    cores         = var.vm_cores
+    memory        = var.vm_memory_gb
+    core_fraction = var.vm_core_fraction
   }
 
   boot_disk {
