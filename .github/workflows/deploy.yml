@@ -32,9 +32,15 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
+      TF_DIR: infra/terraform/yandex
       YC_TOKEN: ${{ secrets.YC_TOKEN }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      VM_NAME: ${{ inputs.vm_name }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh scripts/*.py
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -54,8 +60,6 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
           chmod 600 ~/.ssh/debtsapp_vm
-          touch ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
 
       - name: Write Terraform variables
         env:
@@ -63,113 +67,33 @@ jobs:
           FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
           SSH_PUBLIC_KEY: ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
           ADMIN_PASSWORD_HASH: ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
-          VM_NAME: ${{ inputs.vm_name }}
           ZONE: ${{ inputs.zone }}
           APP_DOMAIN: ${{ inputs.app_domain }}
           ACME_EMAIL: ${{ inputs.acme_email }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          data = {
-              "cloud_id": os.environ["CLOUD_ID"],
-              "folder_id": os.environ["FOLDER_ID"],
-              "zone": os.environ["ZONE"],
-              "vm_name": os.environ["VM_NAME"],
-              "ssh_user": "macsia",
-              "ssh_public_key": os.environ["SSH_PUBLIC_KEY"],
-              "admin_password_hash": os.environ["ADMIN_PASSWORD_HASH"],
-              "web_ingress_cidrs": ["0.0.0.0/0"],
-              "vm_cores": 4,
-              "vm_memory_gb": 4,
-              "boot_disk_size_gb": 50,
-              "boot_disk_type": "network-ssd",
-              "app_domain": os.environ["APP_DOMAIN"],
-              "acme_email": os.environ["ACME_EMAIL"],
-          }
-          output = Path("infra/terraform/yandex/terraform.auto.tfvars.json")
-          output.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-          PY
+        run: python scripts/write_terraform_vars.py
 
       - name: Terraform init
-        run: terraform -chdir=infra/terraform/yandex init
+        run: terraform -chdir="$TF_DIR" init
 
       - name: Terraform apply
-        id: terraform_apply
-        run: |
-          set +e
-          terraform -chdir=infra/terraform/yandex apply -auto-approve 2>&1 | tee /tmp/terraform-apply.log
-          status=${PIPESTATUS[0]}
-          set -e
-
-          if [ "$status" -eq 0 ]; then
-            echo "existing_vm=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if grep -q 'AlreadyExists desc = Instance with name' /tmp/terraform-apply.log; then
-            echo "existing_vm=true" >> "$GITHUB_OUTPUT"
-            echo "VM already exists, continuing with inventory rendering and deploy steps."
-            exit 0
-          fi
-
-          exit "$status"
+        run: scripts/terraform_apply.sh "$TF_DIR"
 
       - name: Resolve SSH host
         id: resolve_ssh_host
-        env:
-          FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          VM_NAME: ${{ inputs.vm_name }}
         run: |
-          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip 2>/dev/null || true)"
-
-          if [ -z "$host" ]; then
-            curl -fsSL \
-              -H "Authorization: Bearer $YC_TOKEN" \
-              "https://compute.api.cloud.yandex.net/compute/v1/instances?folderId=${FOLDER_ID}" \
-              -o /tmp/yc-instances.json
-
-            host="$(python scripts/resolve_ssh_host.py)"
-          fi
-
-          if [ -z "$host" ]; then
-            echo "Failed to resolve SSH host for ${VM_NAME}" >&2
-            exit 1
-          fi
-
+          host="$(python scripts/resolve_ssh_host.py)"
           echo "host=$host" >> "$GITHUB_OUTPUT"
 
       - name: Render Ansible inventory
-        run: |
-          APP_HOST="${{ steps.resolve_ssh_host.outputs.host }}" \
-          SSH_USER_FALLBACK="macsia" \
-          SSH_PORT_FALLBACK="22" \
-          SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
-          ./scripts/render-ansible-inventory.sh infra/terraform/yandex > infra/ansible/inventory.ini
-
-      - name: Trust new host key
-        run: |
-          host="${{ steps.resolve_ssh_host.outputs.host }}"
-          for _ in $(seq 1 30); do
-            if ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          exit 1
+        env:
+          APP_HOST: ${{ steps.resolve_ssh_host.outputs.host }}
+          SSH_USER_FALLBACK: macsia
+          SSH_PORT_FALLBACK: "22"
+          SSH_KEY_FILE: /home/runner/.ssh/debtsapp_vm
+        run: ./scripts/render-ansible-inventory.sh "$TF_DIR" > infra/ansible/inventory.ini
 
       - name: Wait for SSH
-        run: |
-          host="${{ steps.resolve_ssh_host.outputs.host }}"
-          for _ in $(seq 1 30); do
-            if timeout 5 bash -c "cat < /dev/null > /dev/tcp/${host}/22" 2>/dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          exit 1
+        run: scripts/wait_for_ssh.sh "${{ steps.resolve_ssh_host.outputs.host }}"
 
       - name: Write deploy secrets file
         env:
@@ -180,39 +104,21 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: |
-          python - <<'PY'
-          import os
-          from pathlib import Path
-
-          def yaml_quote(value: str) -> str:
-              value = value or ""
-              return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-
-          lines = [
-              f"ghcr_username: {yaml_quote(os.environ.get('GHCR_PULL_USERNAME', ''))}",
-              f"ghcr_token: {yaml_quote(os.environ.get('GHCR_PULL_TOKEN', ''))}",
-              f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",
-              f"neo4j_password: {yaml_quote(os.environ['NEO4J_PASSWORD'])}",
-              f"jwt_secret: {yaml_quote(os.environ['JWT_SECRET'])}",
-              f"grafana_admin_password: {yaml_quote(os.environ['GRAFANA_ADMIN_PASSWORD'])}",
-              f"bot_token: {yaml_quote(os.environ.get('BOT_TOKEN', ''))}",
-          ]
-          Path("infra/ansible/vars/deploy-secrets.yml").write_text("\n".join(lines) + "\n", encoding="utf-8")
-          PY
+        run: python scripts/write_deploy_secrets.py
 
       - name: Bootstrap k3s
+        env:
+          ANSIBLE_CONFIG: infra/ansible/ansible.cfg
         run: |
-          ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
           ansible-playbook infra/ansible/bootstrap-k3s.yml \
             -i infra/ansible/inventory.ini \
             -e app_domain="${{ inputs.app_domain }}"
 
       - name: Deploy DebtsApp
+        env:
+          ANSIBLE_CONFIG: infra/ansible/ansible.cfg
         run: |
-          ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
           ansible-playbook infra/ansible/deploy-app.yml \
             -i infra/ansible/inventory.ini \
             -e app_domain="${{ inputs.app_domain }}" \
             -e acme_email="${{ inputs.acme_email }}"
-
