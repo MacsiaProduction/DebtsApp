@@ -1,7 +1,7 @@
 cloud_id       = "b1gu62djbhs46pdcn2kp"
 folder_id      = "b1g89hsg2mhm2ic1768h"
 zone           = "ru-central1-a"
-vm_name        = "debtsapp-k3s"
+vm_name        = "debtsapp-docker"
 ssh_user       = "macsia"
 ssh_public_key = "ssh-ed25519 AAAA... replace-me"
 admin_password_hash = "$6$replace-me"

@@ -11,12 +11,9 @@ def yaml_quote(value: str) -> str:
 
 def main() -> int:
     lines = [
-        f"ghcr_username: {yaml_quote(os.environ.get('GHCR_PULL_USERNAME', ''))}",
-        f"ghcr_token: {yaml_quote(os.environ.get('GHCR_PULL_TOKEN', ''))}",
         f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",
         f"neo4j_password: {yaml_quote(os.environ['NEO4J_PASSWORD'])}",
         f"jwt_secret: {yaml_quote(os.environ['JWT_SECRET'])}",
-        f"grafana_admin_password: {yaml_quote(os.environ['GRAFANA_ADMIN_PASSWORD'])}",
         f"bot_token: {yaml_quote(os.environ.get('BOT_TOKEN', ''))}",
     ]
     output_path = Path(

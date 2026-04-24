@@ -1,0 +1,142 @@
+---
+- name: Deploy DebtsApp with Docker Compose
+  hosts: debtsapp
+  become: true
+  gather_facts: false
+  vars_files:
+    - vars/deploy-secrets.yml
+  vars:
+    app_dir: /opt/debtsapp
+    compose_project_name: debtsapp
+
+  tasks:
+    - name: Install Docker prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Ensure Docker apt keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Install Docker GPG key
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+      args:
+        executable: /bin/bash
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Configure Docker apt repository
+      ansible.builtin.shell: |
+        set -euo pipefail
+        arch="$(dpkg --print-architecture)"
+        codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+        cat > /etc/apt/sources.list.d/docker.list <<EOF
+        deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${codename} stable
+        EOF
+      args:
+        executable: /bin/bash
+
+    - name: Install Docker Engine and Compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Install Python Docker SDK for Ansible modules
+      ansible.builtin.apt:
+        name:
+          - python3-docker
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is enabled
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Ensure application directory exists
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Synchronize repository to VM
+      ansible.posix.synchronize:
+        src: "{{ playbook_dir }}/../../"
+        dest: "{{ app_dir }}/"
+        delete: true
+        recursive: true
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=backend/build"
+          - "--exclude=backend/target"
+          - "--exclude=frontend/node_modules"
+          - "--exclude=frontend/build"
+          - "--exclude=frontend/dist"
+          - "--exclude=e2e/node_modules"
+          - "--exclude=e2e/playwright-report"
+          - "--exclude=e2e/test-results"
+          - "--exclude=infra/ansible/inventory.ini"
+          - "--exclude=infra/ansible/vars/deploy-secrets.yml"
+          - "--exclude=infra/terraform/yandex/.terraform"
+          - "--exclude=infra/terraform/yandex/*.tfstate"
+          - "--exclude=infra/terraform/yandex/*.tfstate.*"
+          - "--exclude=.idea"
+          - "--exclude=.vscode"
+          - "--exclude=.DS_Store"
+
+    - name: Render compose environment file
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/.env"
+        mode: "0600"
+        content: |
+          POSTGRES_USER=debtsbot
+          POSTGRES_PASSWORD={{ postgres_password }}
+          POSTGRES_DB=debtsbot
+          NEO4J_PASSWORD={{ neo4j_password }}
+          NEO4J_AUTH=neo4j/{{ neo4j_password }}
+          JWT_SECRET={{ jwt_secret }}
+          TELEGRAM_BOT_ENABLED=false
+          BOT_TOKEN={{ bot_token }}
+          REACT_APP_API_BASE=/api
+
+    - name: Start application stack with Docker Compose
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - "{{ compose_project_name }}"
+          - up
+          - -d
+          - --build
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for backend HTTP port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 8080
+        timeout: 180
+
+    - name: Wait for frontend HTTP port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 3000
+        timeout: 180

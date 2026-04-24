@@ -21,7 +21,7 @@ variable "zone" {
 variable "vm_name" {
   description = "VM name prefix."
   type        = string
-  default     = "debtsapp-k3s"
+  default     = "debtsapp-docker"
 }
 
 variable "network_name" {

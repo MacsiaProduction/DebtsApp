@@ -18,19 +18,11 @@ inputs:
     required: true
   acme_email:
     required: true
-  ghcr_username:
-    required: false
-    default: ""
-  ghcr_token:
-    required: false
-    default: ""
   postgres_password:
     required: true
   neo4j_password:
     required: true
   jwt_secret:
-    required: true
-  grafana_admin_password:
     required: true
   bot_token:
     required: false
@@ -55,11 +47,8 @@ runs:
     - name: Write deploy secrets
       shell: bash
       env:
-        GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
-        GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
         JWT_SECRET: ${{ inputs.jwt_secret }}
-        GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
         BOT_TOKEN: ${{ inputs.bot_token }}
       run: python scripts/write_deploy_secrets.py

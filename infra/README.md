@@ -1,10 +1,10 @@
 # Deploying DebtsApp To A Yandex Cloud VM
 
-This repo keeps the full VM deploy path in git:
+This repo keeps the full lab-2 VM deploy path in git:
 
-- `infra/terraform/yandex/` provisions the Ubuntu VM in Yandex Cloud.
-- `infra/ansible/` installs k3s, kubectl, Helm, and the application via `site.yml`.
-- `infra/k8s/` holds the rendered app, ingress, HPA, and monitoring manifests.
+- [`infra/terraform/yandex/`](infra/terraform/yandex) provisions the Ubuntu VM in Yandex Cloud.
+- [`infra/ansible/`](infra/ansible) installs Docker and Docker Compose, copies the repo to the VM, and starts the application stack.
+- [`docker-compose.yml`](docker-compose.yml) defines PostgreSQL, Neo4j, backend, and frontend services.
 
 The Terraform VM bootstrap creates the primary admin account as `macsia`, enables SSH key and password login for that account, and keeps direct root SSH login disabled.
 
@@ -17,11 +17,10 @@ cp infra/ansible/vars/deploy-secrets.example.yml infra/ansible/vars/deploy-secre
 
 Edit:
 
-- `infra/terraform/yandex/terraform.tfvars`
-- `infra/ansible/group_vars/all.yml`
-- `infra/ansible/vars/deploy-secrets.yml`
+- [`infra/terraform/yandex/terraform.tfvars`](infra/terraform/yandex/terraform.tfvars)
+- [`infra/ansible/vars/deploy-secrets.yml`](infra/ansible/vars/deploy-secrets.yml)
 
-Terraform uses the repo-local mirror config in `infra/terraform/terraformrc`, so start with:
+Terraform uses the repo-local mirror config in [`infra/terraform/terraformrc`](infra/terraform/terraformrc), so start with:
 
 ```bash
 make infra-init
@@ -48,32 +47,21 @@ make render-inventory
 make deploy
 ```
 
-`make deploy` runs the single site playbook `infra/ansible/site.yml`, which bootstraps k3s on the VM and then rolls out the application, ingress, TLS, and monitoring.
+[`make deploy`](../Makefile) runs [`infra/ansible/site.yml`](infra/ansible/site.yml), which installs Docker on the VM, synchronizes the repository, writes the deployment `.env`, and starts the stack with Docker Compose.
 
-## 4. Point DNS
+## 4. Access the application
 
 ```bash
 terraform -chdir=infra/terraform/yandex output -raw public_ip
 ```
 
-Point your `A` record for `app_domain` to that IP, and also point `grafana_domain` if you keep it on a separate hostname.
+Use the VM public IP with these ports:
 
-The `make deploy` run configures:
-
-- PostgreSQL and Neo4j with persistent volumes
-- backend and frontend workloads
-- Traefik ingress with TLS via cert-manager
-- backend HPA at 15% CPU target
-- metrics-server
-- Prometheus and Grafana via `kube-prometheus-stack`
-
-App URL: `https://<app_domain>`. Grafana URL: `https://<grafana_domain>`.
-
-Load-test example:
-
-```bash
-k6 run -e BASE_URL=https://<app_domain> scripts/k6-backend-load.js
-```
+- Frontend: `http://<public_ip>:3000`
+- Backend: `http://<public_ip>:8080`
+- PostgreSQL: `<public_ip>:5432`
+- Neo4j Browser: `http://<public_ip>:7474`
+- Neo4j Bolt: `<public_ip>:7687`
 
 ## GitHub Actions Secrets
 
@@ -85,12 +73,9 @@ The manual deploy workflow expects:
 - `DEPLOY_SSH_PUBLIC_KEY`
 - `DEPLOY_SSH_PRIVATE_KEY`
 - `VM_ADMIN_PASSWORD_HASH`
-- `GHCR_PULL_USERNAME`
-- `GHCR_PULL_TOKEN`
 - `POSTGRES_PASSWORD`
 - `NEO4J_PASSWORD`
 - `JWT_SECRET`
-- `GRAFANA_ADMIN_PASSWORD`
 - `BOT_TOKEN` optionally
 
 Keep only example values in git. Real secrets stay ignored.
