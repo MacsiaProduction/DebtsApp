@@ -3,6 +3,9 @@
   hosts: debtsapp
   become: true
   gather_facts: true
+  vars:
+    swap_file_path: /swapfile
+    swap_file_size_mb: 4096
 
   tasks:
     - name: Install base packages
@@ -18,6 +21,46 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+    - name: Check whether swap is already enabled
+      ansible.builtin.command: swapon --show=NAME --noheadings
+      register: swap_devices
+      changed_when: false
+
+    - name: Allocate swap file
+      ansible.builtin.command: fallocate -l {{ swap_file_size_mb }}M {{ swap_file_path }}
+      args:
+        creates: "{{ swap_file_path }}"
+      when: swap_file_path not in swap_devices.stdout
+
+    - name: Set swap file permissions
+      ansible.builtin.file:
+        path: "{{ swap_file_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Format swap file
+      ansible.builtin.command: mkswap {{ swap_file_path }}
+      when: swap_file_path not in swap_devices.stdout
+
+    - name: Enable swap file
+      ansible.builtin.command: swapon {{ swap_file_path }}
+      when: swap_file_path not in swap_devices.stdout
+
+    - name: Persist swap file in fstab
+      ansible.builtin.mount:
+        name: none
+        src: "{{ swap_file_path }}"
+        fstype: swap
+        opts: sw
+        state: present
+
+    - name: Set low swappiness
+      ansible.posix.sysctl:
+        name: vm.swappiness
+        value: "10"
+        state: present
 
     - name: Ensure apt keyrings directory exists
       ansible.builtin.file:
@@ -68,7 +111,7 @@
       ansible.builtin.shell: |
         set -euo pipefail
         INSTALL_K3S_CHANNEL="{{ k3s_install_channel }}" \
-        INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --tls-san {{ app_domain }}" \
+        INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --tls-san {{ app_domain }} --kubelet-arg fail-swap-on=false" \
         /tmp/get-k3s.sh
       args:
         executable: /bin/bash
