@@ -57,6 +57,14 @@ e2e/test-results/
 frontend/.env
 frontend/.env.local
 infra/ansible/inventory.ini
+infra/ansible/inventory.old.ini
+infra/ansible/vars/deploy-secrets.yml
+infra/terraform/yandex/.terraform/
+infra/terraform/yandex/*.tfstate
+infra/terraform/yandex/*.tfstate.*
+infra/terraform/yandex/terraform.tfvars
+infra/terraform/yandex/terraform.auto.tfvars
+infra/terraform/yandex/terraform.auto.tfvars.json
 
 # IDE
 .vscode/

@@ -27,12 +27,18 @@ import ru.m_polukhin.debtsapp.utils.TokenUtils;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Testcontainers
-@SpringBootTest
+@SpringBootTest(properties = {
+        "telegram.bot.enabled=false",
+        "bot.token=test-token",
+        "bot.name=TestBot",
+        "jwt.secret=test-secret",
+        "app.jwt.allow-generated-secret=false"
+})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-public class DebtsDAOTest {
+class DebtsDAOIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
@@ -51,17 +57,29 @@ public class DebtsDAOTest {
         registry.add("spring.neo4j.authentication.password", () -> "");
     }
 
-    @Autowired private DebtsDAO debtsDAO;
-    @Autowired private DebtGraphService debtGraphService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private TransactionRepository transactionRepository;
-    @Autowired private SessionRepository sessionRepository;
-    @Autowired private TokenUtils tokenUtils;
+    @Autowired
+    private DebtsDAO debtsDAO;
 
-    private UserData user1, user2;
+    @Autowired
+    private DebtGraphService debtGraphService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private SessionRepository sessionRepository;
+
+    @Autowired
+    private TokenUtils tokenUtils;
+
+    private UserData user1;
+    private UserData user2;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         debtGraphService.deleteAll();
         transactionRepository.deleteAll();
         sessionRepository.deleteAll();
@@ -73,7 +91,7 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testAddTransaction() throws UserNotFoundException, ParseException {
+    void testAddTransaction() throws UserNotFoundException, ParseException {
         Long chatId = 1L;
         String comment = "Test transaction";
         Long sum = 100L;
@@ -95,7 +113,7 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testAddTransactionReverse() throws UserNotFoundException, ParseException {
+    void testAddTransactionReverse() throws UserNotFoundException, ParseException {
         long chatId = 1L;
         long sum = 100L;
 
@@ -109,22 +127,21 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testAddTelegramUser() {
+    void testAddTelegramUser() {
         UserData saved = debtsDAO.addTelegramUser(99L, "newuser");
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getTelegramId()).isEqualTo(99L);
 
-        // Idempotent
         UserData saved2 = debtsDAO.addTelegramUser(99L, "newuser");
         assertThat(saved2.getId()).isEqualTo(saved.getId());
     }
 
     @Test
-    public void testFindAllTransactionsRelated() throws UserNotFoundException, ParseException {
+    void testFindAllTransactionsRelated() throws UserNotFoundException, ParseException {
         Long chatId = 1L;
         debtsDAO.addTransaction(chatId, user1.getId(), "user2", 100L, "comment");
 
-        var page = debtsDAO.findAllTransactionsRelated(chatId, user1.getId(), PageRequest.of(0, 10));
+        Page<TransactionInfo> page = debtsDAO.findAllTransactionsRelated(chatId, user1.getId(), PageRequest.of(0, 10));
 
         assertThat(page.getContent()).hasSize(1);
         assertThat(page.getContent().get(0).sender()).isEqualTo("user1");
@@ -132,7 +149,7 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testGetDebt() throws UserNotFoundException {
+    void testGetDebt() throws UserNotFoundException {
         Long chatId = 1L;
         debtGraphService.increaseDebt(user1.getId(), user2.getId(), 100L, chatId);
 
@@ -145,7 +162,7 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testFindAllDebtsRelated() throws UserNotFoundException {
+    void testFindAllDebtsRelated() throws UserNotFoundException {
         Long chatId = 1L;
         debtGraphService.increaseDebt(user1.getId(), user2.getId(), 100L, chatId);
 
@@ -158,7 +175,7 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testFindAllDebtsRelatedInChat() throws UserNotFoundException {
+    void testFindAllDebtsRelatedInChat() throws UserNotFoundException {
         Long chatId = 1L;
         debtGraphService.increaseDebt(user1.getId(), user2.getId(), 100L, chatId);
 
@@ -171,13 +188,13 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testGetAllChats() {
+    void testGetAllChats() {
         List<Long> chatIds = debtsDAO.getAllChats();
         assertThat(chatIds).isNotNull();
     }
 
     @Test
-    public void testActiveSession() throws UserNotFoundException {
+    void testActiveSession() throws UserNotFoundException {
         debtsDAO.addActiveSession(tokenUtils.generateSessionToken(user1.getId(), "hash"));
 
         ActiveSessionToken token = debtsDAO.getUsersSession(user1.getId());
@@ -187,18 +204,18 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testFindUserByNameNotFound() {
+    void testFindUserByNameNotFound() {
         assertThrows(UserNotFoundException.class, () -> debtsDAO.findUserByName("nonExistingUser"));
     }
 
     @Test
-    public void testDeleteTransaction() throws UserNotFoundException, ParseException {
+    void testDeleteTransaction() throws UserNotFoundException, ParseException {
         TransactionInfo first = debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "first");
         debtsDAO.addTransaction(1L, user1.getId(), "user2", 200L, "second");
 
         TransactionInfo deleted = debtsDAO.deleteTransaction(user1.getId(), first.id());
         DebtInfo debtInfo = debtsDAO.getDebt(1L, "user1", "user2");
-        var transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
+        Page<TransactionInfo> transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
 
         assertThat(deleted.comment()).isEqualTo("first");
         assertThat(debtInfo.sum()).isEqualTo(200L);
@@ -207,11 +224,11 @@ public class DebtsDAOTest {
     }
 
     @Test
-    public void testUpdateTransactionComment() throws UserNotFoundException, ParseException {
+    void testUpdateTransactionComment() throws UserNotFoundException, ParseException {
         TransactionInfo transaction = debtsDAO.addTransaction(1L, user1.getId(), "user2", 100L, "old");
 
         TransactionInfo updated = debtsDAO.updateTransactionComment(user1.getId(), transaction.id(), "new");
-        var transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
+        Page<TransactionInfo> transactions = debtsDAO.findAllTransactionsRelated(1L, user1.getId(), PageRequest.of(0, 10));
 
         assertThat(updated.id()).isEqualTo(transaction.id());
         assertThat(updated.comment()).isEqualTo("new");

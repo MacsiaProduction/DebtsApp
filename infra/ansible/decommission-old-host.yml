@@ -1,0 +1,21 @@
+---
+- name: Remove the legacy DebtsApp deployment from the old host
+  hosts: old_host
+  gather_facts: false
+
+  tasks:
+    - name: Stop legacy compose stack if present
+      ansible.builtin.shell: |
+        set -euo pipefail
+        if [ -f docker-compose.yml ]; then
+          docker compose down --remove-orphans || docker-compose down --remove-orphans
+        fi
+      args:
+        chdir: "{{ old_deploy_dir }}"
+        executable: /bin/bash
+      failed_when: false
+
+    - name: Remove legacy deployment directory
+      ansible.builtin.file:
+        path: "{{ old_deploy_dir }}"
+        state: absent

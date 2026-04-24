@@ -1,0 +1,17 @@
+cloud_id       = "b1gu62djbhs46pdcn2kp"
+folder_id      = "b1g89hsg2mhm2ic1768h"
+zone           = "ru-central1-a"
+vm_name        = "debtsapp-k3s"
+ssh_user       = "macsia"
+ssh_public_key = "ssh-ed25519 AAAA... replace-me"
+admin_password_hash = "$6$replace-me"
+
+app_domain = "debtsapp.macsia.fun"
+acme_email = "macsia.production@gmail.com"
+
+# Optional overrides:
+# web_ingress_cidrs     = ["0.0.0.0/0"]
+# vm_cores              = 4
+# vm_memory_gb          = 4
+# boot_disk_size_gb     = 50
+# boot_disk_type        = "network-ssd"

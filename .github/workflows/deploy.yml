@@ -1,21 +1,67 @@
-name: Deploy
+name: Provision And Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      app_domain:
+        description: Public DNS name for DebtsApp
+        required: false
+        default: debtsapp.macsia.fun
+        type: string
+      acme_email:
+        description: Email for Let's Encrypt
+        required: false
+        default: macsia.production@gmail.com
+        type: string
+      vm_name:
+        description: Name of the new Yandex VM
+        required: false
+        default: debtsapp-k3s
+        type: string
+      zone:
+        description: Yandex Cloud zone
+        required: false
+        default: ru-central1-a
+        type: string
+      decommission_old_host:
+        description: Remove the old host deployment after the new VM is ready
+        required: false
+        default: false
+        type: boolean
+      old_host:
+        description: Address of the old VM
+        required: false
+        type: string
+      old_host_user:
+        description: SSH user for the old VM
+        required: false
+        default: robot
+        type: string
+      old_host_port:
+        description: SSH port for the old VM
+        required: false
+        default: "22"
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
+      YC_TOKEN: ${{ secrets.YC_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Ansible
         run: python -m pip install --upgrade pip ansible
@@ -23,24 +69,141 @@ jobs:
       - name: Prepare SSH access
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.ROBOT_SSH_KEY }}" > ~/.ssh/robot_ed25519
-          chmod 600 ~/.ssh/robot_ed25519
-          printf '%s\n' "${{ secrets.ROBOT_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
+          chmod 600 ~/.ssh/debtsapp_vm
+          touch ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Write inventory
+      - name: Write Terraform variables
+        env:
+          CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
+          FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          SSH_PUBLIC_KEY: ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
+          VM_NAME: ${{ inputs.vm_name }}
+          ZONE: ${{ inputs.zone }}
+          APP_DOMAIN: ${{ inputs.app_domain }}
+          ACME_EMAIL: ${{ inputs.acme_email }}
         run: |
-          cat > infra/ansible/inventory.ini <<EOF
-          [debtsapp]
-          ${{ secrets.ROBOT_SSH_HOST }} ansible_user=${{ secrets.ROBOT_SSH_USER }} ansible_port=${{ secrets.ROBOT_SSH_PORT }} ansible_ssh_private_key_file=$HOME/.ssh/robot_ed25519
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          data = {
+              "cloud_id": os.environ["CLOUD_ID"],
+              "folder_id": os.environ["FOLDER_ID"],
+              "zone": os.environ["ZONE"],
+              "vm_name": os.environ["VM_NAME"],
+              "ssh_user": "macsia",
+              "ssh_public_key": os.environ["SSH_PUBLIC_KEY"],
+              "admin_password_hash": os.environ["ADMIN_PASSWORD_HASH"],
+              "web_ingress_cidrs": ["0.0.0.0/0"],
+              "vm_cores": 4,
+              "vm_memory_gb": 4,
+              "boot_disk_size_gb": 50,
+              "boot_disk_type": "network-ssd",
+              "app_domain": os.environ["APP_DOMAIN"],
+              "acme_email": os.environ["ACME_EMAIL"],
+          }
+          output = Path("infra/terraform/yandex/terraform.auto.tfvars.json")
+          output.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Terraform init
+        run: terraform -chdir=infra/terraform/yandex init
+
+      - name: Terraform apply
+        run: terraform -chdir=infra/terraform/yandex apply -auto-approve
+
+      - name: Render Ansible inventory
+        run: |
+          SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
+          ./scripts/render-ansible-inventory.sh infra/terraform/yandex > infra/ansible/inventory.ini
+
+      - name: Trust new host key
+        run: |
+          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
+          for _ in $(seq 1 30); do
+            if ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Wait for SSH
+        run: |
+          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
+          for _ in $(seq 1 30); do
+            if timeout 5 bash -c "cat < /dev/null > /dev/tcp/${host}/22" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Write deploy secrets file
+        env:
+          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          def yaml_quote(value: str) -> str:
+              value = value or ""
+              return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+          lines = [
+              f"ghcr_username: {yaml_quote(os.environ.get('GHCR_PULL_USERNAME', ''))}",
+              f"ghcr_token: {yaml_quote(os.environ.get('GHCR_PULL_TOKEN', ''))}",
+              f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",
+              f"neo4j_password: {yaml_quote(os.environ['NEO4J_PASSWORD'])}",
+              f"jwt_secret: {yaml_quote(os.environ['JWT_SECRET'])}",
+              f"grafana_admin_password: {yaml_quote(os.environ['GRAFANA_ADMIN_PASSWORD'])}",
+              f"bot_token: {yaml_quote(os.environ.get('BOT_TOKEN', ''))}",
+          ]
+          Path("infra/ansible/vars/deploy-secrets.yml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Bootstrap k3s
+        run: |
+          ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
+          ansible-playbook infra/ansible/bootstrap-k3s.yml \
+            -i infra/ansible/inventory.ini \
+            -e app_domain="${{ inputs.app_domain }}"
+
+      - name: Deploy DebtsApp
+        run: |
+          ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
+          ansible-playbook infra/ansible/deploy-app.yml \
+            -i infra/ansible/inventory.ini \
+            -e app_domain="${{ inputs.app_domain }}" \
+            -e acme_email="${{ inputs.acme_email }}"
+
+      - name: Trust old host key
+        if: ${{ inputs.decommission_old_host && inputs.old_host != '' }}
+        run: |
+          test -n "${{ secrets.OLD_HOST_SSH_PRIVATE_KEY }}"
+          printf '%s\n' "${{ secrets.OLD_HOST_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_old_host
+          chmod 600 ~/.ssh/debtsapp_old_host
+          ssh-keyscan -H "${{ inputs.old_host }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Decommission old host
+        if: ${{ inputs.decommission_old_host && inputs.old_host != '' }}
+        run: |
+          cat > infra/ansible/inventory.old.ini <<EOF
+          [old_host]
+          ${{ inputs.old_host }} ansible_user=${{ inputs.old_host_user }} ansible_port=${{ inputs.old_host_port }} ansible_ssh_private_key_file=$HOME/.ssh/debtsapp_old_host
           EOF
 
-      - name: Deploy application
-        env:
-          GHCR_USERNAME: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ansible-playbook infra/ansible/deploy.yml \
-            -i infra/ansible/inventory.ini \
-            -e ghcr_username="$GHCR_USERNAME" \
-            -e ghcr_token="$GHCR_TOKEN"
+          ANSIBLE_CONFIG=infra/ansible/ansible.cfg \
+          ansible-playbook infra/ansible/decommission-old-host.yml \
+            -i infra/ansible/inventory.old.ini

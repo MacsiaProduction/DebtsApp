@@ -1,47 +1,44 @@
 package ru.m_polukhin.debtsapp.utils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.Neo4jContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.test.util.ReflectionTestUtils;
 
-@SpringBootTest
-@Testcontainers
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 class TokenUtilsTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+    @Test
+    void testGenerateJwtTokenWithConfiguredSecret() {
+        TokenUtils tokenUtils = new TokenUtils("test-secret", false);
+        configureLifetimes(tokenUtils);
 
-    @Container
-    static Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5-community")
-            .withoutAuthentication();
+        String token = tokenUtils.generateJwtToken("testSubject");
 
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.neo4j.uri", neo4j::getBoltUrl);
-        registry.add("spring.neo4j.authentication.username", () -> "neo4j");
-        registry.add("spring.neo4j.authentication.password", () -> "");
+        assertThat(tokenUtils.getSubject(token)).isEqualTo("testSubject");
     }
 
-    @Autowired
-    TokenUtils tokenUtils;
+    @Test
+    void testGenerateJwtTokenWithGeneratedSecretInLocalMode() {
+        TokenUtils tokenUtils = new TokenUtils("", true);
+        configureLifetimes(tokenUtils);
+
+        String token = tokenUtils.generateJwtToken("generated");
+
+        assertThat(tokenUtils.getSubject(token)).isEqualTo("generated");
+    }
 
     @Test
-    public void testGenerateJwtToken() {
-        String expected = "testSubject";
-        String token = tokenUtils.generateJwtToken(expected);
-        String actual = tokenUtils.getSubject(token);
-        Assertions.assertEquals(expected, actual);
+    void testMissingJwtSecretFailsWhenGeneratedSecretsDisabled() {
+        assertThatThrownBy(() -> new TokenUtils("", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("JWT_SECRET");
+    }
+
+    private void configureLifetimes(TokenUtils tokenUtils) {
+        ReflectionTestUtils.setField(tokenUtils, "jwtLifetime", Duration.ofMinutes(10));
+        ReflectionTestUtils.setField(tokenUtils, "sessionLifetime", Duration.ofMinutes(1));
     }
 }

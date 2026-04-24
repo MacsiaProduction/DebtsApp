@@ -63,7 +63,7 @@ describe('Transactions page', () => {
       expect(screen.getByText(/транзакции/i)).toBeInTheDocument();
       expect(screen.getByText('A')).toBeInTheDocument();
       expect(screen.getByText('B')).toBeInTheDocument();
-      expect(screen.getByText('100')).toBeInTheDocument();
+      expect(screen.getByText('100 ₽')).toBeInTheDocument();
       expect(screen.getByText('test')).toBeInTheDocument();
     });
   });

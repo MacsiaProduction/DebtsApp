@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: debts-frontend
+  namespace: {{ app_namespace }}
+spec:
+  selector:
+    app: debts-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debts-frontend
+  namespace: {{ app_namespace }}
+spec:
+  replicas: {{ frontend_replicas }}
+  selector:
+    matchLabels:
+      app: debts-frontend
+  template:
+    metadata:
+      labels:
+        app: debts-frontend
+    spec:
+{% if (ghcr_username | default('')) | length > 0 and (ghcr_token | default('')) | length > 0 %}
+      imagePullSecrets:
+        - name: {{ image_pull_secret_name }}
+{% endif %}
+      containers:
+        - name: frontend
+          image: {{ frontend_image | quote }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

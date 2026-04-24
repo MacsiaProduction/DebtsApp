@@ -1,0 +1,44 @@
+---
+app_namespace: debtsapp
+monitoring_namespace: monitoring
+app_domain: debtsapp.macsia.fun
+grafana_domain: grafana.macsia.fun
+acme_email: macsia.production@gmail.com
+
+k3s_kubeconfig: /etc/rancher/k3s/k3s.yaml
+k3s_install_channel: stable
+manifest_dir: /srv/debtsapp/manifests
+storage_class_name: local-path
+
+backend_image: ghcr.io/macsiaproduction/debtsapp-backend:latest
+frontend_image: ghcr.io/macsiaproduction/debtsapp-frontend:latest
+image_pull_secret_name: ghcr-pull
+
+backend_replicas: 1
+frontend_replicas: 1
+backend_hpa_min_replicas: 1
+backend_hpa_max_replicas: 5
+backend_hpa_target_cpu_utilization: 15
+monitoring_release_name: monitoring
+
+postgres_database: debtsbot
+postgres_user: debtsbot
+postgres_storage_size: 10Gi
+
+neo4j_user: neo4j
+neo4j_storage_size: 10Gi
+
+telegram_bot_enabled: false
+bot_name: DebtsAppBot
+
+session_token_lifetime: 1m
+jwt_lifetime: 10m
+link_token_lifetime: 5m
+app_cors_allowed_origin_patterns:
+  - "https://{{ app_domain }}"
+  - "http://localhost:*"
+  - "http://127.0.0.1:*"
+  - "http://localhost:3000"
+  - "http://127.0.0.1:3000"
+
+old_deploy_dir: /home/robot/debtsapp

@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: debts-bot
+  namespace: {{ app_namespace }}
+  labels:
+    app: debts-bot
+spec:
+  selector:
+    app: debts-bot
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debts-bot
+  namespace: {{ app_namespace }}
+spec:
+  replicas: {{ backend_replicas }}
+  selector:
+    matchLabels:
+      app: debts-bot
+  template:
+    metadata:
+      labels:
+        app: debts-bot
+    spec:
+{% if (ghcr_username | default('')) | length > 0 and (ghcr_token | default('')) | length > 0 %}
+      imagePullSecrets:
+        - name: {{ image_pull_secret_name }}
+{% endif %}
+      containers:
+        - name: backend
+          image: {{ backend_image | quote }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: debtsapp-env
+            - secretRef:
+                name: debtsapp-env
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

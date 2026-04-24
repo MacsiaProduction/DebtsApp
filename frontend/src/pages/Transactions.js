@@ -274,7 +274,7 @@ function Transactions() {
             <tr key={tx.id || index}>
               <td>{tx.sender}</td>
               <td>{tx.recipient}</td>
-              <td>{tx.sum}</td>
+              <td>{`${tx.sum} ₽`}</td>
               <td>
                 {editingId === tx.id ? (
                   <Form.Control
