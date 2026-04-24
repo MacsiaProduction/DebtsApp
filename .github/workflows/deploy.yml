@@ -23,25 +23,6 @@ on:
         required: false
         default: ru-central1-a
         type: string
-      decommission_old_host:
-        description: Remove the old host deployment after the new VM is ready
-        required: false
-        default: false
-        type: boolean
-      old_host:
-        description: Address of the old VM
-        required: false
-        type: string
-      old_host_user:
-        description: SSH user for the old VM
-        required: false
-        default: robot
-        type: string
-      old_host_port:
-        description: SSH port for the old VM
-        required: false
-        default: "22"
-        type: string
 
 jobs:
   deploy:
