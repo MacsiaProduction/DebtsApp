@@ -96,12 +96,6 @@ variable "preemptible" {
   default     = false
 }
 
-variable "web_ingress_cidrs" {
-  description = "Deprecated. Existing network security groups control access in the default-folder deployment path."
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
-
 variable "app_domain" {
   description = "Public domain that will point to the app."
   type        = string

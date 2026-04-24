@@ -33,6 +33,7 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
       TF_DIR: infra/terraform/yandex
+      ANSIBLE_CONFIG: infra/ansible/ansible.cfg
       YC_TOKEN: ${{ secrets.YC_TOKEN }}
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       VM_NAME: ${{ inputs.vm_name }}
@@ -61,16 +62,24 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
           chmod 600 ~/.ssh/debtsapp_vm
 
-      - name: Write Terraform variables
-        env:
-          CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
-          FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          SSH_PUBLIC_KEY: ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
-          ADMIN_PASSWORD_HASH: ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
-          ZONE: ${{ inputs.zone }}
-          APP_DOMAIN: ${{ inputs.app_domain }}
-          ACME_EMAIL: ${{ inputs.acme_email }}
-        run: python scripts/write_terraform_vars.py
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy
+        with:
+          cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          folder_id: ${{ secrets.YC_FOLDER_ID }}
+          ssh_public_key: ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
+          admin_password_hash: ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
+          vm_name: ${{ inputs.vm_name }}
+          zone: ${{ inputs.zone }}
+          app_domain: ${{ inputs.app_domain }}
+          acme_email: ${{ inputs.acme_email }}
+          ghcr_username: ${{ secrets.GHCR_PULL_USERNAME }}
+          ghcr_token: ${{ secrets.GHCR_PULL_TOKEN }}
+          postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          neo4j_password: ${{ secrets.NEO4J_PASSWORD }}
+          jwt_secret: ${{ secrets.JWT_SECRET }}
+          grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
 
       - name: Terraform init
         run: terraform -chdir="$TF_DIR" init
@@ -78,47 +87,16 @@ jobs:
       - name: Terraform apply
         run: scripts/terraform_apply.sh "$TF_DIR"
 
-      - name: Resolve SSH host
-        id: resolve_ssh_host
-        run: |
-          host="$(python scripts/resolve_ssh_host.py)"
-          echo "host=$host" >> "$GITHUB_OUTPUT"
-
       - name: Render Ansible inventory
-        env:
-          APP_HOST: ${{ steps.resolve_ssh_host.outputs.host }}
-          SSH_USER_FALLBACK: macsia
-          SSH_PORT_FALLBACK: "22"
-          SSH_KEY_FILE: /home/runner/.ssh/debtsapp_vm
-        run: ./scripts/render-ansible-inventory.sh "$TF_DIR" > infra/ansible/inventory.ini
+        run: |
+          python scripts/resolve_ssh_host.py > /tmp/host.json
+          SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
+            scripts/render-ansible-inventory.sh /tmp/host.json > infra/ansible/inventory.ini
 
       - name: Wait for SSH
-        run: scripts/wait_for_ssh.sh "${{ steps.resolve_ssh_host.outputs.host }}"
-
-      - name: Write deploy secrets file
-        env:
-          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
-          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: python scripts/write_deploy_secrets.py
-
-      - name: Bootstrap k3s
-        env:
-          ANSIBLE_CONFIG: infra/ansible/ansible.cfg
         run: |
-          ansible-playbook infra/ansible/bootstrap-k3s.yml \
-            -i infra/ansible/inventory.ini \
-            -e app_domain="${{ inputs.app_domain }}"
+          host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
+          scripts/wait_for_ssh.sh "$host"
 
-      - name: Deploy DebtsApp
-        env:
-          ANSIBLE_CONFIG: infra/ansible/ansible.cfg
-        run: |
-          ansible-playbook infra/ansible/deploy-app.yml \
-            -i infra/ansible/inventory.ini \
-            -e app_domain="${{ inputs.app_domain }}" \
-            -e acme_email="${{ inputs.acme_email }}"
+      - name: Run site playbook
+        run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini

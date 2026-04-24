@@ -10,7 +10,6 @@ app_domain = "debtsapp.macsia.fun"
 acme_email = "macsia.production@gmail.com"
 
 # Optional overrides:
-# web_ingress_cidrs     = ["0.0.0.0/0"]
 # vm_cores              = 4
 # vm_memory_gb          = 4
 # boot_disk_size_gb     = 50

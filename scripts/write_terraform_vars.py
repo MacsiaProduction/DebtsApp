@@ -14,7 +14,6 @@ def main() -> int:
         "ssh_user": os.environ.get("SSH_USER", "macsia"),
         "ssh_public_key": os.environ["SSH_PUBLIC_KEY"],
         "admin_password_hash": os.environ["ADMIN_PASSWORD_HASH"],
-        "web_ingress_cidrs": ["0.0.0.0/0"],
         "vm_cores": int(os.environ.get("VM_CORES", "4")),
         "vm_memory_gb": int(os.environ.get("VM_MEMORY_GB", "4")),
         "boot_disk_size_gb": int(os.environ.get("BOOT_DISK_SIZE_GB", "50")),

@@ -8,7 +8,7 @@ The maintained production path is:
 
 `Terraform (Yandex VM) -> Ansible bootstrap -> single-node k3s -> Traefik HTTPS ingress`
 
-Use [infra/README.md](/home/macsia/git/DebtsApp/infra/README.md) when moving the app to a new VM.
+Use [infra/README.md](infra/README.md) when deploying the app to a VM.
 
 ## Repo Layout
 
@@ -17,7 +17,6 @@ backend/              Spring Boot API
 frontend/             React app
 infra/                Terraform, Ansible, Kubernetes, monitoring
 docker-compose.yml    Local/lab-2 stack only
-legacy/compose-host/  Archived old host-specific production compose files
 ```
 
 ## Local And Lab Use
@@ -32,8 +31,7 @@ make test-backend-integration
 make docker-up
 make infra-apply
 make render-inventory
-make bootstrap-vm
-make deploy-k3s
+make deploy
 ```
 
 ## Runtime Notes

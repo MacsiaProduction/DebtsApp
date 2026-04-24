@@ -2,7 +2,8 @@ TERRAFORM_DIR := infra/terraform/yandex
 ANSIBLE_DIR := infra/ansible
 K3S_INVENTORY ?= $(ANSIBLE_DIR)/inventory.ini
 
-.PHONY: help build-backend test-backend test-backend-integration run-backend clean-backend docker-up docker-down infra-init infra-plan infra-apply render-inventory bootstrap-vm deploy-k3s decommission-old-host
+.PHONY: help build-backend test-backend test-backend-integration run-backend clean-backend \
+        docker-up docker-down infra-init infra-plan infra-apply render-inventory deploy
 
 help:
 	@echo "Available commands:"
@@ -17,9 +18,7 @@ help:
 	@echo "  make infra-plan       - Preview Terraform changes for the new VM"
 	@echo "  make infra-apply      - Provision or update the new VM"
 	@echo "  make render-inventory - Render Ansible inventory from Terraform outputs"
-	@echo "  make bootstrap-vm     - Install Docker, k3s, kubectl, and Helm on the new VM"
-	@echo "  make deploy-k3s       - Deploy DebtsApp to the new VM Kubernetes cluster"
-	@echo "  make decommission-old-host - Stop and remove the old VM deployment"
+	@echo "  make deploy           - Run the full site playbook (bootstrap + deploy)"
 
 build-backend:
 	cd backend && ./gradlew build
@@ -52,13 +51,8 @@ infra-apply: infra-init
 	TF_CLI_CONFIG_FILE=$(CURDIR)/infra/terraform/terraformrc terraform -chdir=$(TERRAFORM_DIR) apply
 
 render-inventory:
-	./scripts/render-ansible-inventory.sh $(TERRAFORM_DIR) > $(K3S_INVENTORY)
+	TF_DIR=$(TERRAFORM_DIR) VM_NAME=$${VM_NAME:-debtsapp-k3s} python scripts/resolve_ssh_host.py \
+	  | ./scripts/render-ansible-inventory.sh - > $(K3S_INVENTORY)
 
-bootstrap-vm:
-	ANSIBLE_CONFIG=$(ANSIBLE_DIR)/ansible.cfg ansible-playbook $(ANSIBLE_DIR)/bootstrap-k3s.yml -i $(K3S_INVENTORY)
-
-deploy-k3s:
-	ANSIBLE_CONFIG=$(ANSIBLE_DIR)/ansible.cfg ansible-playbook $(ANSIBLE_DIR)/deploy-app.yml -i $(K3S_INVENTORY)
-
-decommission-old-host:
-	ANSIBLE_CONFIG=$(ANSIBLE_DIR)/ansible.cfg ansible-playbook $(ANSIBLE_DIR)/decommission-old-host.yml -i $(ANSIBLE_DIR)/inventory.old.ini
+deploy:
+	ANSIBLE_CONFIG=$(ANSIBLE_DIR)/ansible.cfg ansible-playbook $(ANSIBLE_DIR)/site.yml -i $(K3S_INVENTORY)

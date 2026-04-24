@@ -1,0 +1,65 @@
+name: Prepare Deploy
+description: Renders Terraform variables and Ansible deploy secrets from workflow inputs.
+
+inputs:
+  cloud_id:
+    required: true
+  folder_id:
+    required: true
+  ssh_public_key:
+    required: true
+  admin_password_hash:
+    required: true
+  vm_name:
+    required: true
+  zone:
+    required: true
+  app_domain:
+    required: true
+  acme_email:
+    required: true
+  ghcr_username:
+    required: false
+    default: ""
+  ghcr_token:
+    required: false
+    default: ""
+  postgres_password:
+    required: true
+  neo4j_password:
+    required: true
+  jwt_secret:
+    required: true
+  grafana_admin_password:
+    required: true
+  bot_token:
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Write Terraform variables
+      shell: bash
+      env:
+        CLOUD_ID: ${{ inputs.cloud_id }}
+        FOLDER_ID: ${{ inputs.folder_id }}
+        SSH_PUBLIC_KEY: ${{ inputs.ssh_public_key }}
+        ADMIN_PASSWORD_HASH: ${{ inputs.admin_password_hash }}
+        VM_NAME: ${{ inputs.vm_name }}
+        ZONE: ${{ inputs.zone }}
+        APP_DOMAIN: ${{ inputs.app_domain }}
+        ACME_EMAIL: ${{ inputs.acme_email }}
+      run: python scripts/write_terraform_vars.py
+
+    - name: Write deploy secrets
+      shell: bash
+      env:
+        GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
+        GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
+        POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
+        NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
+        JWT_SECRET: ${{ inputs.jwt_secret }}
+        GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
+        BOT_TOKEN: ${{ inputs.bot_token }}
+      run: python scripts/write_deploy_secrets.py
