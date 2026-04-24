@@ -14,3 +14,8 @@
         reverse_proxy debts_frontend:80
     }
 }
+
+{$PORTAINER_DOMAIN} {
+    encode gzip
+    reverse_proxy portainer:9000
+}

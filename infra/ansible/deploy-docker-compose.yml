@@ -107,6 +107,7 @@
         mode: "0600"
         content: |
           APP_DOMAIN={{ app_domain }}
+          PORTAINER_DOMAIN={{ portainer_domain }}
           ACME_EMAIL={{ acme_email }}
           POSTGRES_USER=debtsbot
           POSTGRES_PASSWORD={{ postgres_password }}

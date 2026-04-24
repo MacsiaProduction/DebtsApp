@@ -16,6 +16,9 @@ inputs:
     required: true
   app_domain:
     required: true
+  portainer_domain:
+    required: false
+    default: "portainer.macsia.fun"
   acme_email:
     required: true
   postgres_password:
@@ -48,6 +51,7 @@ runs:
       shell: bash
       env:
         APP_DOMAIN: ${{ inputs.app_domain }}
+        PORTAINER_DOMAIN: ${{ inputs.portainer_domain }}
         ACME_EMAIL: ${{ inputs.acme_email }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
