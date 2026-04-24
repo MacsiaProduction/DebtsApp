@@ -1,6 +1,23 @@
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8080';
 
-const getToken = () => localStorage.getItem('token');
+export const getStoredToken = () => {
+  const token = localStorage.getItem('token');
+
+  if (!token || token === 'undefined' || token === 'null') {
+    return null;
+  }
+
+  return token;
+};
+
+export const hasStoredToken = () => Boolean(getStoredToken());
+
+export const clearStoredAuth = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('username');
+};
+
+const getToken = () => getStoredToken();
 
 const getErrorMessage = (data, fallback) =>
   (data && data.message) || (typeof data === 'string' ? data : null) || fallback;
@@ -24,8 +41,7 @@ const parseResponse = async (response) => {
 };
 
 const clearAuthAndRedirect = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('username');
+  clearStoredAuth();
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
@@ -75,7 +91,14 @@ export const login = async (username, password) => {
     throw new Error(getErrorMessage(data, 'Ошибка авторизации'));
   }
 
-  return { token: typeof data === 'string' ? data : data?.token };
+  const token = typeof data === 'string' ? data : data?.token;
+
+  if (!token || typeof token !== 'string') {
+    clearStoredAuth();
+    throw new Error('Сервер не вернул токен авторизации');
+  }
+
+  return { token };
 };
 
 export const register = (username, password) =>

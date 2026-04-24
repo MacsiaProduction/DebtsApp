@@ -57,6 +57,7 @@ services:
       - SPRING_NEO4J_URI=bolt://debts-neo4j:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
       - SPRING_NEO4J_AUTHENTICATION_PASSWORD=debtsbot123
+      - JWT_SECRET=debtsapp-local-dev-jwt-secret-change-me
       - TELEGRAM_BOT_ENABLED=false
     depends_on:
       debts_bot_db:

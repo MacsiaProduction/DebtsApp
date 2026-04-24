@@ -4,10 +4,10 @@ import Login from './pages/Login';
 import Transactions from './pages/Transactions';
 import Debts from './pages/Debts';
 import NavBar from './components/NavBar';
+import { hasStoredToken } from './services/api';
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" replace />;
+  return hasStoredToken() ? children : <Navigate to="/login" replace />;
 }
 
 function App() {

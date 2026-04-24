@@ -1,14 +1,14 @@
 import React from 'react';
 import { Navbar, Nav, Button, Container } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
+import { clearStoredAuth, hasStoredToken } from '../services/api';
 
 function NavBar() {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  const token = hasStoredToken();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
+    clearStoredAuth();
     navigate('/login');
   };
 

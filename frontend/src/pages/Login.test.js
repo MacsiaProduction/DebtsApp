@@ -4,7 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import * as api from '../services/api';
 import Login from './Login';
 
-jest.mock('../services/api');
+jest.mock('../services/api', () => {
+  const actual = jest.requireActual('../services/api');
+
+  return {
+    ...actual,
+    login: jest.fn(),
+    register: jest.fn(),
+  };
+});
 
 const mockedLogin = api.login;
 const mockedRegister = api.register;
@@ -98,6 +106,6 @@ describe('Login page', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole('heading', { name: /debtsapp/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /войти/i })).not.toBeInTheDocument();
   });
 });
