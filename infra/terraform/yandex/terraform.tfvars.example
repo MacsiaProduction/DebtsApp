@@ -10,8 +10,8 @@ app_domain = "debtsapp2.macsia.fun"
 acme_email = "macsia.production@gmail.com"
 
 # Optional overrides:
-# vm_cores              = 4
-# vm_memory_gb          = 8
+# vm_cores              = 2
+# vm_memory_gb          = 4
 # vm_core_fraction      = 50
 # boot_disk_size_gb     = 50
 # boot_disk_type        = "network-ssd"

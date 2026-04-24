@@ -69,13 +69,13 @@ variable "platform_id" {
 variable "vm_cores" {
   description = "Number of CPU cores."
   type        = number
-  default     = 4
+  default     = 2
 }
 
 variable "vm_memory_gb" {
   description = "RAM size in GB."
   type        = number
-  default     = 8
+  default     = 4
 }
 
 variable "vm_core_fraction" {
