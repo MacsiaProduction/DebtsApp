@@ -63,11 +63,19 @@
         --namespace cert-manager --create-namespace --set crds.enabled=true
 
     - name: Install metrics-server
-      ansible.builtin.command: >-
-        helm upgrade --install metrics-server metrics-server/metrics-server
-        --namespace kube-system
-        --set args[0]=--kubelet-insecure-tls
-        --set args[1]=--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+      ansible.builtin.command:
+        argv:
+          - helm
+          - upgrade
+          - --install
+          - metrics-server
+          - metrics-server/metrics-server
+          - --namespace
+          - kube-system
+          - --set
+          - args[0]=--kubelet-insecure-tls
+          - --set
+          - args[1]=--kubelet-preferred-address-types=InternalIP\,ExternalIP\,Hostname
 
     - name: Render ClusterIssuer manifest
       ansible.builtin.template:
