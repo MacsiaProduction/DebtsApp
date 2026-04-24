@@ -117,12 +117,16 @@ jobs:
 
       - name: Render Ansible inventory
         run: |
+          APP_HOST="${{ inputs.app_domain }}" \
+          SSH_USER_FALLBACK="macsia" \
+          SSH_PORT_FALLBACK="22" \
           SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
           ./scripts/render-ansible-inventory.sh infra/terraform/yandex > infra/ansible/inventory.ini
 
       - name: Trust new host key
         run: |
-          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
+          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip 2>/dev/null || true)"
+          host="${host:-${{ inputs.app_domain }}}"
           for _ in $(seq 1 30); do
             if ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>/dev/null; then
               exit 0
@@ -133,7 +137,8 @@ jobs:
 
       - name: Wait for SSH
         run: |
-          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip)"
+          host="$(terraform -chdir=infra/terraform/yandex output -raw public_ip 2>/dev/null || true)"
+          host="${host:-${{ inputs.app_domain }}}"
           for _ in $(seq 1 30); do
             if timeout 5 bash -c "cat < /dev/null > /dev/tcp/${host}/22" 2>/dev/null; then
               exit 0
