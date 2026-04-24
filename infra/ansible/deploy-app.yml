@@ -115,6 +115,10 @@
           --values {{ manifest_dir }}/monitoring-values.yaml
       args:
         executable: /bin/bash
+      register: monitoring_install
+      retries: 3
+      delay: 20
+      until: monitoring_install.rc == 0
 
     - name: Apply application manifests
       ansible.builtin.shell: |
