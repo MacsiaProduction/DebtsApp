@@ -5,7 +5,8 @@
 {$APP_DOMAIN} {
     encode gzip
 
-    handle /api/* {
+    # Снимаем префикс /api перед проксированием, т.к. бекенд регистрирует роуты без него.
+    handle_path /api/* {
         reverse_proxy debts_bot:8080
     }
 

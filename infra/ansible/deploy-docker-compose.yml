@@ -117,6 +117,7 @@
           TELEGRAM_BOT_ENABLED=false
           BOT_TOKEN={{ bot_token }}
           REACT_APP_API_BASE=/api
+          APP_CORS_ALLOWED_ORIGIN_PATTERNS=https://{{ app_domain }},http://localhost:*,http://127.0.0.1:*
 
     - name: Start application stack with Docker Compose
       ansible.builtin.command:

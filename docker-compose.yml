@@ -77,6 +77,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-debtsapp-local-dev-jwt-secret-change-me}
       TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
       BOT_TOKEN: ${BOT_TOKEN:-}
+      APP_CORS_ALLOWED_ORIGIN_PATTERNS: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:-https://${APP_DOMAIN:-debtsapp2.macsia.fun},http://localhost:*,http://127.0.0.1:*}
     depends_on:
       debts_bot_db:
         condition: service_healthy
