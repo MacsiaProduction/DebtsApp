@@ -2,48 +2,16 @@ data "yandex_compute_image" "ubuntu" {
   family = var.image_family
 }
 
-resource "yandex_vpc_network" "debtsapp" {
-  name = "${var.vm_name}-network"
+locals {
+  subnet_name = coalesce(var.subnet_name, "network-${var.zone}")
 }
 
-resource "yandex_vpc_subnet" "debtsapp" {
-  name           = "${var.vm_name}-subnet"
-  zone           = var.zone
-  network_id     = yandex_vpc_network.debtsapp.id
-  v4_cidr_blocks = [var.subnet_cidr]
+data "yandex_vpc_network" "debtsapp" {
+  name = var.network_name
 }
 
-resource "yandex_vpc_security_group" "debtsapp" {
-  name        = "${var.vm_name}-sg"
-  description = "DebtsApp VM access"
-  network_id  = yandex_vpc_network.debtsapp.id
-
-  ingress {
-    description    = "SSH"
-    protocol       = "TCP"
-    port           = 22
-    v4_cidr_blocks = var.web_ingress_cidrs
-  }
-
-  ingress {
-    description    = "HTTP"
-    protocol       = "TCP"
-    port           = 80
-    v4_cidr_blocks = var.web_ingress_cidrs
-  }
-
-  ingress {
-    description    = "HTTPS"
-    protocol       = "TCP"
-    port           = 443
-    v4_cidr_blocks = var.web_ingress_cidrs
-  }
-
-  egress {
-    description    = "Allow all outbound traffic"
-    protocol       = "ANY"
-    v4_cidr_blocks = ["0.0.0.0/0"]
-  }
+data "yandex_vpc_subnet" "debtsapp" {
+  name = local.subnet_name
 }
 
 resource "yandex_compute_instance" "debtsapp" {
@@ -66,9 +34,8 @@ resource "yandex_compute_instance" "debtsapp" {
   }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.debtsapp.id
-    nat                = true
-    security_group_ids = [yandex_vpc_security_group.debtsapp.id]
+    subnet_id = data.yandex_vpc_subnet.debtsapp.id
+    nat       = true
   }
 
   scheduling_policy {

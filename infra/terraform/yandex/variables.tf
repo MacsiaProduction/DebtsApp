@@ -24,10 +24,17 @@ variable "vm_name" {
   default     = "debtsapp-k3s"
 }
 
-variable "subnet_cidr" {
-  description = "CIDR block for the app subnet."
+variable "network_name" {
+  description = "Existing Yandex VPC network name to reuse."
   type        = string
-  default     = "10.10.0.0/24"
+  default     = "network"
+}
+
+variable "subnet_name" {
+  description = "Existing Yandex VPC subnet name to reuse. Defaults to network-<zone>."
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "ssh_user" {
@@ -90,7 +97,7 @@ variable "preemptible" {
 }
 
 variable "web_ingress_cidrs" {
-  description = "CIDRs allowed to access SSH, HTTP, and HTTPS."
+  description = "Deprecated. Existing network security groups control access in the default-folder deployment path."
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
