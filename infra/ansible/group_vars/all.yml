@@ -10,8 +10,8 @@ k3s_install_channel: stable
 manifest_dir: /srv/debtsapp/manifests
 storage_class_name: local-path
 
-backend_image: ghcr.io/macsiaproduction/debtsapp-backend:latest
-frontend_image: ghcr.io/macsiaproduction/debtsapp-frontend:latest
+backend_image: ghcr.io/macsiaproduction/debtsapp-backend:lab3
+frontend_image: ghcr.io/macsiaproduction/debtsapp-frontend:lab3
 image_pull_secret_name: ghcr-pull
 
 backend_replicas: 1

@@ -1,30 +1,26 @@
-name: CI
+name: "CI: сборка и тесты"
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master, main, lab3 ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, lab3 ]
 
 jobs:
-
-  # ──────────────────────────────────────────
-  # BACKEND
-  # ──────────────────────────────────────────
-
   backend-test:
-    name: Backend — Test
+    name: "Backend: unit-тесты"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Установить Java 21 для backend
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
+      - name: Восстановить кеш Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -33,13 +29,13 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Run unit tests
+      - name: Запустить unit-тесты backend
         working-directory: backend
         run: ./gradlew test --no-daemon
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - name: Upload test report
+      - name: Сохранить отчет unit-тестов backend
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -47,19 +43,20 @@ jobs:
           path: backend/build/reports/tests/test/
 
   backend-build:
-    name: Backend — Build
+    name: "Backend: компиляция"
     runs-on: ubuntu-latest
     needs: backend-test
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Установить Java 21 для backend
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
+      - name: Восстановить кеш Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -68,24 +65,25 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Compile sources
+      - name: Скомпилировать backend
         working-directory: backend
         run: ./gradlew classes --no-daemon
 
   backend-integration:
-    name: Backend — Integration
+    name: "Backend: integration-тесты"
     runs-on: ubuntu-latest
     needs: backend-test
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Установить Java 21 для backend
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
+      - name: Восстановить кеш Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -94,41 +92,38 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Run integration tests
+      - name: Запустить integration-тесты backend
         working-directory: backend
         run: ./gradlew integrationTest --no-daemon
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-  # ──────────────────────────────────────────
-  # FRONTEND
-  # ──────────────────────────────────────────
-
   frontend-test:
-    name: Frontend — Test
+    name: "Frontend: unit-тесты"
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Установить Node.js для frontend
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Установить зависимости frontend
         run: npm ci
 
-      - name: Run unit tests
+      - name: Запустить unit-тесты frontend
         run: npm test -- --watchAll=false
         env:
           CI: "true"
 
-      - name: Upload test report
+      - name: Сохранить отчет unit-тестов frontend
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -136,31 +131,32 @@ jobs:
           path: frontend/coverage/
 
   frontend-build:
-    name: Frontend — Build
+    name: "Frontend: production-сборка"
     runs-on: ubuntu-latest
     needs: frontend-test
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Установить Node.js для frontend
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Установить зависимости frontend
         run: npm ci
 
-      - name: Build
+      - name: Собрать frontend для production
         run: npm run build
 
   publish-images:
-    name: Publish Images
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+    name: "Docker: публикация образов в GHCR"
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/lab3') }}
     runs-on: ubuntu-latest
     needs:
       - backend-build
@@ -170,34 +166,59 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Normalize image namespace
+      - name: Подготовить namespace GHCR
         run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
-      - name: Log in to GHCR
+      - name: Подготовить теги Docker-образов
+        run: |
+          # SHA-тег нужен для точной версии, branch-тег нужен для lab3/latest deploy.
+          backend_image="${IMAGE_NAMESPACE}/debtsapp-backend"
+          frontend_image="${IMAGE_NAMESPACE}/debtsapp-frontend"
+
+          {
+            echo 'BACKEND_IMAGE_TAGS<<EOF'
+            echo "${backend_image}:${GITHUB_SHA}"
+            if [[ "${GITHUB_REF_NAME}" == "lab3" ]]; then
+              echo "${backend_image}:lab3"
+            fi
+            if [[ "${GITHUB_REF_NAME}" == "main" || "${GITHUB_REF_NAME}" == "master" ]]; then
+              echo "${backend_image}:latest"
+            fi
+            echo 'EOF'
+
+            echo 'FRONTEND_IMAGE_TAGS<<EOF'
+            echo "${frontend_image}:${GITHUB_SHA}"
+            if [[ "${GITHUB_REF_NAME}" == "lab3" ]]; then
+              echo "${frontend_image}:lab3"
+            fi
+            if [[ "${GITHUB_REF_NAME}" == "main" || "${GITHUB_REF_NAME}" == "master" ]]; then
+              echo "${frontend_image}:latest"
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Авторизоваться в GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend image
+      - name: Собрать и отправить backend-образ
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/debtsapp-backend:latest
-            ${{ env.IMAGE_NAMESPACE }}/debtsapp-backend:${{ github.sha }}
+          tags: ${{ env.BACKEND_IMAGE_TAGS }}
 
-      - name: Build and push frontend image
+      - name: Собрать и отправить frontend-образ
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/debtsapp-frontend:latest
-            ${{ env.IMAGE_NAMESPACE }}/debtsapp-frontend:${{ github.sha }}
+          tags: ${{ env.FRONTEND_IMAGE_TAGS }}

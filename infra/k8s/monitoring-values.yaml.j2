@@ -16,6 +16,8 @@ grafana:
     dashboards:
       enabled: true
       searchNamespace: ALL
+      label: grafana_dashboard
+      labelValue: "1"
 
 alertmanager:
   enabled: false
@@ -24,6 +26,13 @@ prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector:
+      matchLabels:
+        release: {{ monitoring_release_name | quote }}
+    serviceMonitorNamespaceSelector:
+      matchNames:
+        - {{ app_namespace | quote }}
+        - {{ monitoring_namespace | quote }}
 
 kube-state-metrics:
   enabled: true

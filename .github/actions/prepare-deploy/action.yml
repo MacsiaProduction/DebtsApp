@@ -1,5 +1,5 @@
-name: Prepare Deploy
-description: Renders Terraform variables and Ansible deploy secrets from workflow inputs.
+name: Подготовка deploy
+description: Создает файлы переменных Terraform и Ansible из inputs workflow.
 
 inputs:
   cloud_id:
@@ -16,7 +16,13 @@ inputs:
     required: true
   app_domain:
     required: true
+  grafana_domain:
+    required: true
   acme_email:
+    required: true
+  backend_image:
+    required: true
+  frontend_image:
     required: true
   ghcr_username:
     required: false
@@ -39,7 +45,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Write Terraform variables
+    - name: Записать переменные Terraform
       shell: bash
       env:
         CLOUD_ID: ${{ inputs.cloud_id }}
@@ -52,9 +58,14 @@ runs:
         ACME_EMAIL: ${{ inputs.acme_email }}
       run: python scripts/write_terraform_vars.py
 
-    - name: Write deploy secrets
+    - name: Записать переменные и секреты Ansible
       shell: bash
       env:
+        APP_DOMAIN: ${{ inputs.app_domain }}
+        GRAFANA_DOMAIN: ${{ inputs.grafana_domain }}
+        ACME_EMAIL: ${{ inputs.acme_email }}
+        BACKEND_IMAGE: ${{ inputs.backend_image }}
+        FRONTEND_IMAGE: ${{ inputs.frontend_image }}
         GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
         GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}

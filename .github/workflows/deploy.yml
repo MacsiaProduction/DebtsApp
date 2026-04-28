@@ -1,31 +1,42 @@
-name: Provision And Deploy
+name: "Deploy: VM и приложение"
 
 on:
   workflow_dispatch:
     inputs:
       app_domain:
-        description: Public DNS name for DebtsApp
+        description: Публичный DNS для DebtsApp
         required: false
         default: debtsapp.macsia.fun
         type: string
+      grafana_domain:
+        description: Публичный DNS для Grafana
+        required: false
+        default: grafana.macsia.fun
+        type: string
       acme_email:
-        description: Email for Let's Encrypt
+        description: Email для HTTPS-сертификатов
         required: false
         default: macsia.production@gmail.com
         type: string
       vm_name:
-        description: Name of the new Yandex VM
+        description: Имя VM в Yandex Cloud
         required: false
         default: debtsapp-k3s
         type: string
       zone:
-        description: Yandex Cloud zone
+        description: Зона Yandex Cloud
         required: false
         default: ru-central1-a
+        type: string
+      image_tag:
+        description: Тег Docker-образов для deploy
+        required: false
+        default: lab3
         type: string
 
 jobs:
   deploy:
+    name: Развернуть VM и k3s-приложение
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,31 +49,42 @@ jobs:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       VM_NAME: ${{ inputs.vm_name }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
 
-      - name: Make scripts executable
+      - name: Разрешить запуск deploy-скриптов
         run: chmod +x scripts/*.sh scripts/*.py
 
-      - name: Set up Terraform
+      - name: Установить Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
-      - name: Set up Python
+      - name: Установить Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Ansible
+      - name: Установить Ansible
         run: python -m pip install --upgrade pip ansible
 
-      - name: Prepare SSH access
+      - name: Записать SSH-ключ для VM
         run: |
+          # Ключ нужен Ansible для подключения к созданной VM.
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
           chmod 600 ~/.ssh/debtsapp_vm
 
-      - name: Prepare deploy context
+      - name: Подготовить имена Docker-образов
+        run: |
+          # Deploy берет один тег для backend и frontend, по умолчанию это lab3.
+          image_namespace="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            echo "BACKEND_IMAGE=${image_namespace}/debtsapp-backend:${{ inputs.image_tag }}"
+            echo "FRONTEND_IMAGE=${image_namespace}/debtsapp-frontend:${{ inputs.image_tag }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Подготовить переменные Terraform и Ansible
         uses: ./.github/actions/prepare-deploy
         with:
           cloud_id: ${{ secrets.YC_CLOUD_ID }}
@@ -72,7 +94,10 @@ jobs:
           vm_name: ${{ inputs.vm_name }}
           zone: ${{ inputs.zone }}
           app_domain: ${{ inputs.app_domain }}
+          grafana_domain: ${{ inputs.grafana_domain }}
           acme_email: ${{ inputs.acme_email }}
+          backend_image: ${{ env.BACKEND_IMAGE }}
+          frontend_image: ${{ env.FRONTEND_IMAGE }}
           ghcr_username: ${{ secrets.GHCR_PULL_USERNAME }}
           ghcr_token: ${{ secrets.GHCR_PULL_TOKEN }}
           postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
@@ -81,22 +106,23 @@ jobs:
           grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           bot_token: ${{ secrets.BOT_TOKEN }}
 
-      - name: Terraform init
+      - name: Инициализировать Terraform
         run: terraform -chdir="$TF_DIR" init
 
-      - name: Terraform apply
+      - name: Создать или обновить VM
         run: scripts/terraform_apply.sh "$TF_DIR"
 
-      - name: Render Ansible inventory
+      - name: Сформировать inventory для Ansible
         run: |
+          # Адрес VM берем из Terraform output или Yandex Cloud API.
           python scripts/resolve_ssh_host.py > /tmp/host.json
           SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
             scripts/render-ansible-inventory.sh /tmp/host.json > infra/ansible/inventory.ini
 
-      - name: Wait for SSH
+      - name: Дождаться SSH на VM
         run: |
           host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
           scripts/wait_for_ssh.sh "$host"
 
-      - name: Run site playbook
+      - name: Запустить Ansible deploy в k3s
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini

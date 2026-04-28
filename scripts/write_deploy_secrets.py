@@ -11,6 +11,11 @@ def yaml_quote(value: str) -> str:
 
 def main() -> int:
     lines = [
+        f"app_domain: {yaml_quote(os.environ.get('APP_DOMAIN', 'debtsapp.macsia.fun'))}",
+        f"grafana_domain: {yaml_quote(os.environ.get('GRAFANA_DOMAIN', 'grafana.macsia.fun'))}",
+        f"acme_email: {yaml_quote(os.environ.get('ACME_EMAIL', 'macsia.production@gmail.com'))}",
+        f"backend_image: {yaml_quote(os.environ.get('BACKEND_IMAGE', 'ghcr.io/macsiaproduction/debtsapp-backend:lab3'))}",
+        f"frontend_image: {yaml_quote(os.environ.get('FRONTEND_IMAGE', 'ghcr.io/macsiaproduction/debtsapp-frontend:lab3'))}",
         f"ghcr_username: {yaml_quote(os.environ.get('GHCR_PULL_USERNAME', ''))}",
         f"ghcr_token: {yaml_quote(os.environ.get('GHCR_PULL_TOKEN', ''))}",
         f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",

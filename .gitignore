@@ -2,6 +2,7 @@
 HELP.md
 backend/target/
 backend/build/
+backend/out/
 backend/.gradle/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -70,6 +71,7 @@ infra/terraform/yandex/terraform.auto.tfvars.json
 .vscode/
 .DS_Store
 /build/
+/out/
 /backend/.gradle/
 /.idea/
 /.gradle/
