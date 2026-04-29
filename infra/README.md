@@ -68,8 +68,6 @@ Then:
 
 Caddy will automatically obtain and renew Let's Encrypt certificates for [`debtsapp2.macsia.fun`](infra/caddy/Caddyfile:5) and [`portainer.macsia.fun`](infra/caddy/Caddyfile:17).
 
-The GitHub Actions deploy workflow also checks public DNS after Ansible finishes. If either domain points to another IP, the workflow fails and prints the VM IP that must be used in the DNS `A` records.
-
 ## 5. Access the application
 
 - App: `https://debtsapp2.macsia.fun`

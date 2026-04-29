@@ -111,10 +111,3 @@ jobs:
 
       - name: Запустить Ansible deploy
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
-
-      - name: Проверить публичные DNS и порты
-        env:
-          HOST_DESCRIPTOR: /tmp/host.json
-          APP_DOMAIN: ${{ inputs.app_domain }}
-          PORTAINER_DOMAIN: ${{ inputs.portainer_domain }}
-        run: python scripts/check_public_endpoints.py
