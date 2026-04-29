@@ -62,15 +62,18 @@ terraform -chdir=infra/terraform/yandex output -raw public_ip
 
 Then:
 
-- point `debtsapp2.macsia.fun` to that IP
+- point `debtsapp2.macsia.fun` and `portainer.macsia.fun` to that IP
 - ensure inbound ports `80` and `443` are reachable from the internet
 - rerun [`make deploy`](../Makefile) if DNS was not ready during the first certificate attempt
 
-Caddy will automatically obtain and renew the Let's Encrypt certificate for [`debtsapp2.macsia.fun`](infra/caddy/Caddyfile:5).
+Caddy will automatically obtain and renew Let's Encrypt certificates for [`debtsapp2.macsia.fun`](infra/caddy/Caddyfile:5) and [`portainer.macsia.fun`](infra/caddy/Caddyfile:17).
+
+The GitHub Actions deploy workflow also checks public DNS after Ansible finishes. If either domain points to another IP, the workflow fails and prints the VM IP that must be used in the DNS `A` records.
 
 ## 5. Access the application
 
 - App: `https://debtsapp2.macsia.fun`
+- Portainer: `https://portainer.macsia.fun`
 - PostgreSQL: `<public_ip>:5432`
 - Neo4j Browser: `http://<public_ip>:7474`
 - Neo4j Bolt: `<public_ip>:7687`

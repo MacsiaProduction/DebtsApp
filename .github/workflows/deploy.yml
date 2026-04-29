@@ -8,6 +8,11 @@ on:
         required: false
         default: debtsapp2.macsia.fun
         type: string
+      portainer_domain:
+        description: Публичный DNS для Portainer
+        required: false
+        default: portainer.macsia.fun
+        type: string
       acme_email:
         description: Email для HTTPS-сертификатов
         required: false
@@ -79,6 +84,7 @@ jobs:
           vm_name: ${{ inputs.vm_name }}
           zone: ${{ inputs.zone }}
           app_domain: ${{ inputs.app_domain }}
+          portainer_domain: ${{ inputs.portainer_domain }}
           acme_email: ${{ inputs.acme_email }}
           postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
           neo4j_password: ${{ secrets.NEO4J_PASSWORD }}
@@ -105,3 +111,10 @@ jobs:
 
       - name: Запустить Ansible deploy
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
+
+      - name: Проверить публичные DNS и порты
+        env:
+          HOST_DESCRIPTOR: /tmp/host.json
+          APP_DOMAIN: ${{ inputs.app_domain }}
+          PORTAINER_DOMAIN: ${{ inputs.portainer_domain }}
+        run: python scripts/check_public_endpoints.py
