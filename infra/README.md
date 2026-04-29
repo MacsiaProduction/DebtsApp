@@ -69,10 +69,27 @@ The `make deploy` run configures:
 
 App URL: `https://<app_domain>`. Grafana URL: `https://<grafana_domain>`.
 
+Check Kubernetes routing targets:
+
+```bash
+kubectl get pods -n debtsapp -o wide
+kubectl get hpa -n debtsapp
+kubectl get svc,endpoints -n debtsapp
+kubectl get servicemonitor -n debtsapp
+```
+
 Load-test example:
 
 ```bash
 k6 run -e BASE_URL=https://<app_domain> scripts/k6-backend-load.js
+```
+
+If Traefik shows `no available server`, check that `debts-frontend` has ready endpoints:
+
+```bash
+kubectl get endpoints debts-frontend -n debtsapp
+kubectl describe deployment debts-frontend -n debtsapp
+kubectl get events -n debtsapp --sort-by=.lastTimestamp | tail -n 40
 ```
 
 ## GitHub Actions Secrets

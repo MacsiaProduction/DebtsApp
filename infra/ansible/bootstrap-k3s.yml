@@ -1,5 +1,5 @@
 ---
-- name: Bootstrap k3s on the new VM
+- name: Подготовить k3s на VM
   hosts: debtsapp
   become: true
   gather_facts: false
@@ -17,7 +17,7 @@
       - { key: vm.swappiness,                       value: "10" }
 
   tasks:
-    - name: Install base packages
+    - name: Установить базовые пакеты
       ansible.builtin.apt:
         name:
           - curl
@@ -27,7 +27,7 @@
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Load kernel modules required by k3s/flannel
+    - name: Загрузить модули ядра для k3s/flannel
       ansible.builtin.shell: |
         set -e
         modprobe {{ item }}
@@ -37,7 +37,7 @@
       loop: "{{ kernel_modules }}"
       changed_when: false
 
-    - name: Apply sysctls required by k3s/flannel
+    - name: Применить sysctl для k3s/flannel
       ansible.posix.sysctl:
         name: "{{ item.key }}"
         value: "{{ item.value }}"
@@ -46,7 +46,7 @@
         reload: true
       loop: "{{ required_sysctls }}"
 
-    - name: Ensure swap file is enabled
+    - name: Включить swap-файл
       ansible.builtin.shell: |
         set -euo pipefail
         if swapon --show=NAME --noheadings | grep -qx "{{ swap_file_path }}"; then
@@ -63,7 +63,7 @@
         executable: /bin/bash
       changed_when: false
 
-    - name: Install k3s
+    - name: Установить k3s
       ansible.builtin.shell: |
         set -euo pipefail
         curl -sfL https://get.k3s.io | \
@@ -74,24 +74,24 @@
         executable: /bin/bash
         creates: /usr/local/bin/k3s
 
-    - name: Ensure k3s service is enabled
+    - name: Запустить и включить сервис k3s
       ansible.builtin.systemd:
         name: k3s
         enabled: true
         state: started
 
-    - name: Wait for kubeconfig
+    - name: Дождаться kubeconfig
       ansible.builtin.wait_for:
         path: "{{ k3s_kubeconfig }}"
         timeout: 180
 
-    - name: Ensure kubectl symlink exists
+    - name: Создать symlink kubectl
       ansible.builtin.file:
         src: /usr/local/bin/k3s
         dest: /usr/local/bin/kubectl
         state: link
 
-    - name: Install Helm
+    - name: Установить Helm
       ansible.builtin.shell: |
         set -euo pipefail
         curl -sfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -99,7 +99,7 @@
         executable: /bin/bash
         creates: /usr/local/bin/helm
 
-    - name: Wait for Kubernetes node readiness
+    - name: Дождаться Ready у Kubernetes node
       ansible.builtin.shell: |
         set -euo pipefail
         export KUBECONFIG="{{ k3s_kubeconfig }}"
@@ -110,7 +110,7 @@
       failed_when: false
       changed_when: false
 
-    - name: Collect diagnostics on node failure
+    - name: Собрать диагностику если node не Ready
       when: node_ready.rc is defined and node_ready.rc != 0
       ansible.builtin.shell: |
         set +e
@@ -141,12 +141,12 @@
       register: node_diagnostics
       changed_when: false
 
-    - name: Print diagnostics
+    - name: Показать диагностику node
       when: node_ready.rc is defined and node_ready.rc != 0
       ansible.builtin.debug:
         var: node_diagnostics.stdout_lines
 
-    - name: Fail if node is not ready
+    - name: Завершить с ошибкой если node не Ready
       when: node_ready.rc is defined and node_ready.rc != 0
       ansible.builtin.fail:
         msg: "k3s node did not become Ready within 600s; see diagnostics above"
