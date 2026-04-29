@@ -16,9 +16,11 @@ public interface SessionRepository extends CrudRepository<ActiveSessionToken, Lo
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO active_session_tokens (user_id, identifier_hash, expiration_time) VALUES (:userId, :identifierHash, :time)")
-    void insertSessionToken(@Param("userId") Long userId, @Param("identifierHash") String identifier_hash, @Param("time")Timestamp time);
+    void insertSessionToken(
+            @Param("userId") Long userId,
+            @Param("identifierHash") String identifierHash,
+            @Param("time") Timestamp time);
+
     // только для тестов
     void deleteAll();
-
-    // todo redis
 }

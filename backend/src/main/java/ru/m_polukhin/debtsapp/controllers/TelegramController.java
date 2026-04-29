@@ -76,7 +76,7 @@ public class TelegramController extends TelegramLongPollingBot {
     private void startCommand(Long chatId, Integer threadId, User user) {
         dao.addTelegramUser(user.getId(), user.getUserName());
         telegramService.sendMessage(chatId, threadId,
-                String.format("Well Cum to our club, %s!\n", user.getUserName()));
+                String.format("Welcome to DebtsApp, %s!\n", user.getUserName()));
         helpCommand(chatId, threadId);
     }
 

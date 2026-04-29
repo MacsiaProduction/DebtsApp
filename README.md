@@ -15,7 +15,9 @@ Use [infra/README.md](infra/README.md) when deploying the app to a VM.
 ```text
 backend/              Spring Boot API
 frontend/             React app
+e2e/                  Playwright UI tests
 infra/                Terraform + Ansible deployment + Caddy config
+.github/workflows/    CI and manual deploy pipelines
 docker-compose.yml    Local and VM Docker Compose stack
 ```
 
@@ -37,7 +39,7 @@ make deploy
 
 ## Runtime Notes
 
-- Public app URL is [`https://debtsapp2.macsia.fun`](README.md:40).
+- Public app URL is `https://debtsapp2.macsia.fun`.
 - HTTPS is terminated by [`Caddy`](infra/caddy/Caddyfile:1), which automatically requests and renews Let's Encrypt certificates.
 - Frontend and backend are served behind the same domain; [`/api`](frontend/nginx.conf:8) is proxied to the backend.
 - PostgreSQL is available on port `5432`.

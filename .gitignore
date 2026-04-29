@@ -1,37 +1,14 @@
-# Backend (Java/Spring Boot)
+# Backend
 HELP.md
 backend/target/
 backend/build/
 backend/out/
 backend/.gradle/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-!**/src/main/**/build/
-!**/src/test/**/build/
+backend/bin/
+backend/.env
+backend/.env.*
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-# Frontend (Node.js)
+# Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/build/
@@ -69,23 +46,27 @@ infra/terraform/yandex/terraform.auto.tfvars.json
 
 # IDE
 .vscode/
+.idea/
 .DS_Store
+*.iws
+*.iml
+*.ipr
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Root build artifacts
 /build/
 /out/
-/backend/.gradle/
-/.idea/
 /.gradle/
 /.claude/
-
-backend/build/
-backend/bin/
-backend/target/
-backend/.gradle/
-backend/.idea/
-backend/.vscode/
-backend/.DS_Store/
-backend/.env/
-backend/.env.local/
-backend/.env.development.local/
-backend/.env.test.local/
-backend/.env.production.local/
+__pycache__/

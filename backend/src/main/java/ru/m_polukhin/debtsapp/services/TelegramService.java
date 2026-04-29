@@ -26,7 +26,7 @@ public class TelegramService extends DefaultAbsSender {
     }
 
     public void sendMessage(Long chatId, Integer threadId, String text) {
-        if (text.isEmpty()) {
+        if (text == null || text.isEmpty()) {
             text = "Nothing to show";
         }
         var sendMessage = new SendMessage(
@@ -44,9 +44,10 @@ public class TelegramService extends DefaultAbsSender {
                 null,
                 null);
         try {
-           execute(sendMessage);
+            execute(sendMessage);
         } catch (TelegramApiException e) {
-            if (e.getMessage().contains("[403]") || e.getMessage().contains("[404]")) {
+            String message = e.getMessage();
+            if (message != null && (message.contains("[403]") || message.contains("[404]"))) {
                 dbOptimizationService.deleteDeletedChats(chatId);
             }
         }
@@ -58,7 +59,8 @@ public class TelegramService extends DefaultAbsSender {
         try {
             execute(response);
         } catch (TelegramApiException e) {
-            if (e.getMessage().contains("[403]") || e.getMessage().contains("[404]")) {
+            String message = e.getMessage();
+            if (message != null && (message.contains("[403]") || message.contains("[404]"))) {
                 dbOptimizationService.deleteDeletedChats(chatId);
             }
         }

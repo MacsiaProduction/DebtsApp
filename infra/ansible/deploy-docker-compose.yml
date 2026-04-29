@@ -145,7 +145,7 @@
         port: 443
         timeout: 180
 
-    - name: Показать статус Docker Compose
+    - name: Show Docker Compose status
       ansible.builtin.command:
         argv:
           - docker
@@ -158,15 +158,6 @@
       register: compose_status
       changed_when: false
 
-    - name: Вывести статус Docker Compose
+    - name: Print Docker Compose status
       ansible.builtin.debug:
         var: compose_status.stdout_lines
-
-    - name: Показать процессы на 80 и 443 портах
-      ansible.builtin.shell: ss -ltnp '( sport = :80 or sport = :443 )' || true
-      register: listener_status
-      changed_when: false
-
-    - name: Вывести процессы на 80 и 443 портах
-      ansible.builtin.debug:
-        var: listener_status.stdout_lines

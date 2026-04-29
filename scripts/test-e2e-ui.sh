@@ -11,9 +11,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BACKEND_URL="http://localhost:8080"
+BACKEND_URL="http://localhost/api"
 FRONTEND_URL="http://localhost:3000"
 FRONTEND_PID=""
+
+compose() {
+  if docker compose version > /dev/null 2>&1; then
+    docker compose "$@"
+  else
+    docker-compose "$@"
+  fi
+}
 
 cleanup() {
   if [[ -n "$FRONTEND_PID" ]]; then
@@ -29,7 +37,7 @@ echo ">>> Checking backend at $BACKEND_URL ..."
 if ! curl -sf "$BACKEND_URL/session" > /dev/null 2>&1; then
   echo ">>> Backend not running — starting via docker-compose ..."
   cd "$ROOT"
-  docker-compose up -d --build
+  compose up -d --build
   echo ">>> Waiting for backend to become ready ..."
   for i in $(seq 1 40); do
     sleep 3
@@ -40,7 +48,7 @@ if ! curl -sf "$BACKEND_URL/session" > /dev/null 2>&1; then
     echo "    still waiting... ($i/40)"
     if [[ $i -eq 40 ]]; then
       echo "ERROR: Backend did not start in time. Check docker-compose logs."
-      docker-compose logs debts_bot
+      compose logs debts_bot
       exit 1
     fi
   done
@@ -61,7 +69,7 @@ if ! curl -sf "$FRONTEND_URL" > /dev/null 2>&1; then
     npm ci
   fi
 
-  BROWSER=none npm start &
+  REACT_APP_API_BASE="$BACKEND_URL" BROWSER=none npm start &
   FRONTEND_PID=$!
 
   echo ">>> Waiting for frontend to become ready ..."

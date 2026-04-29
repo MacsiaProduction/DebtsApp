@@ -82,12 +82,13 @@ public class SecurityService {
 
     // Генерирует одноразовый сессионный токен (используется перед входом через Telegram)
     public String generateSessionToken() {
-        String token = generateRandomToken(20);
-        try {
-            dao.getActiveSession(token);
-            return generateSessionToken(); // повтор при коллизии (крайне редко)
-        } catch (UserNotFoundException e) {
-            return token;
+        while (true) {
+            String token = generateRandomToken(20);
+            try {
+                dao.getActiveSession(token);
+            } catch (UserNotFoundException e) {
+                return token;
+            }
         }
     }
 

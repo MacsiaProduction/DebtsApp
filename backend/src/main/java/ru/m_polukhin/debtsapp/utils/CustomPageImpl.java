@@ -8,14 +8,13 @@ import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
-// todo улучшить
 public class CustomPageImpl<T> extends PageImpl<T> {
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
     public CustomPageImpl(@JsonProperty("content") List<T> content, @JsonProperty("number") int number,
                           @JsonProperty("pageable") JsonNode pageable, @JsonProperty("last") boolean last,
-                          @JsonProperty("totalPages") int totalPages, @JsonProperty("sort") JsonNode sort,
-                          @JsonProperty("numberOfElements") int numberOfElements) {
-        super(content, PageRequest.of(number, numberOfElements), totalPages);
+                          @JsonProperty("totalElements") long totalElements, @JsonProperty("sort") JsonNode sort,
+                          @JsonProperty("size") int size, @JsonProperty("numberOfElements") int numberOfElements) {
+        super(content, PageRequest.of(number, size > 0 ? size : Math.max(numberOfElements, 1)), totalElements);
     }
 
     public CustomPageImpl(List<T> content) {

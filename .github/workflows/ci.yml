@@ -32,8 +32,6 @@ jobs:
       - name: Запустить unit-тесты backend
         working-directory: backend
         run: ./gradlew test --no-daemon
-        env:
-          TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Сохранить отчет unit-тестов backend
         if: always()
@@ -43,7 +41,7 @@ jobs:
           path: backend/build/reports/tests/test/
 
   backend-build:
-    name: "Backend: компиляция"
+    name: "Backend: сборка"
     runs-on: ubuntu-latest
     needs: backend-test
     steps:
@@ -65,9 +63,9 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Скомпилировать backend
+      - name: Собрать backend artifact
         working-directory: backend
-        run: ./gradlew classes --no-daemon
+        run: ./gradlew assemble -x test --no-daemon
 
   backend-integration:
     name: "Backend: integration-тесты"
@@ -122,13 +120,6 @@ jobs:
         run: npm test -- --watchAll=false
         env:
           CI: "true"
-
-      - name: Сохранить отчет unit-тестов frontend
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-test-report
-          path: frontend/coverage/
 
   frontend-build:
     name: "Frontend: production-сборка"

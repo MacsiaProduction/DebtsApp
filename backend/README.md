@@ -14,7 +14,7 @@ Spring Boot REST API for transaction management and debt calculation among users
 
 ## Prerequisites
 
-- Java 17 or higher
+- Java 21
 - PostgreSQL 15
 - Neo4j 5
 - Gradle (or use the included Gradle wrapper)
@@ -45,6 +45,9 @@ spring.neo4j.authentication.password=your_password
 
 # Run tests
 ./gradlew test
+
+# Run Docker-backed integration tests
+./gradlew integrationTest
 
 # Run the application
 ./gradlew bootRun
@@ -80,7 +83,8 @@ src/
 │   └── resources/
 │       ├── application.properties
 │       └── db/changelog/     # Liquibase migrations
-└── test/                     # Unit and integration tests
+├── test/                     # Unit and web tests
+└── integrationTest/          # Docker-backed persistence tests
 ```
 
 ## API Endpoints
@@ -90,11 +94,11 @@ See the main README for detailed API documentation.
 ## Testing
 
 ```bash
-# Run all tests
+# Run unit and web tests
 ./gradlew test
 
-# Run tests with coverage
-./gradlew test jacocoTestReport
+# Run integration tests
+./gradlew integrationTest
 ```
 
 ## Database Migrations

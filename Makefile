@@ -1,9 +1,11 @@
 TERRAFORM_DIR := infra/terraform/yandex
 ANSIBLE_DIR := infra/ansible
 VM_INVENTORY ?= $(ANSIBLE_DIR)/inventory.ini
+COMPOSE := $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; else echo "docker-compose"; fi)
 
 .PHONY: help build-backend test-backend test-backend-integration run-backend clean-backend \
-        docker-up docker-down infra-init infra-plan infra-apply render-inventory deploy
+        build-frontend test-frontend test-e2e-ui docker-up docker-down infra-init infra-plan \
+        infra-apply render-inventory deploy
 
 help:
 	@echo "Available commands:"
@@ -12,6 +14,9 @@ help:
 	@echo "  make test-backend-integration - Run backend Docker-backed integration tests"
 	@echo "  make run-backend      - Run the backend application"
 	@echo "  make clean-backend    - Clean backend build artifacts"
+	@echo "  make build-frontend   - Build the frontend application"
+	@echo "  make test-frontend    - Run frontend unit tests"
+	@echo "  make test-e2e-ui      - Run Playwright UI E2E tests"
 	@echo "  make docker-up        - Start the Docker Compose stack"
 	@echo "  make docker-down      - Stop the Docker Compose stack"
 	@echo "  make infra-init       - Initialize Terraform for the VM"
@@ -35,11 +40,20 @@ run-backend:
 clean-backend:
 	cd backend && ./gradlew clean
 
+build-frontend:
+	cd frontend && npm ci && npm run build
+
+test-frontend:
+	cd frontend && npm ci && npm test -- --watchAll=false
+
+test-e2e-ui:
+	./scripts/test-e2e-ui.sh
+
 docker-up:
-	docker compose up -d --build
+	$(COMPOSE) up -d --build
 
 docker-down:
-	docker compose down
+	$(COMPOSE) down
 
 infra-init:
 	TF_CLI_CONFIG_FILE=$(CURDIR)/infra/terraform/terraformrc terraform -chdir=$(TERRAFORM_DIR) init

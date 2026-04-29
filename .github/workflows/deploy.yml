@@ -47,8 +47,8 @@ jobs:
       - name: Получить код репозитория
         uses: actions/checkout@v4
 
-      - name: Разрешить запуск deploy-скриптов
-        run: chmod +x scripts/*.sh scripts/*.py
+      - name: Разрешить запуск shell-скриптов deploy
+        run: chmod +x scripts/*.sh
 
       - name: Установить Terraform
         uses: hashicorp/setup-terraform@v3

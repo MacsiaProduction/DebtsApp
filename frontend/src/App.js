@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Transactions from './pages/Transactions';
+import NewTransaction from './pages/NewTransaction';
 import Debts from './pages/Debts';
 import NavBar from './components/NavBar';
 import { hasStoredToken } from './services/api';
@@ -21,6 +22,14 @@ function App() {
           element={
             <PrivateRoute>
               <Transactions />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/new"
+          element={
+            <PrivateRoute>
+              <NewTransaction />
             </PrivateRoute>
           }
         />

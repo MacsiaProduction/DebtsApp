@@ -26,6 +26,9 @@ function NavBar() {
                 <Nav.Link as={Link} to="/transactions">
                   Транзакции
                 </Nav.Link>
+                <Nav.Link as={Link} to="/new">
+                  Новая транзакция
+                </Nav.Link>
                 <Nav.Link as={Link} to="/debts">
                   Долги
                 </Nav.Link>

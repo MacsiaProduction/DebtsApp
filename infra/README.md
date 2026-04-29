@@ -2,10 +2,10 @@
 
 This repo keeps the full lab-2 VM deploy path in git:
 
-- [`infra/terraform/yandex/`](infra/terraform/yandex) provisions the Ubuntu VM in Yandex Cloud.
-- [`infra/ansible/`](infra/ansible) installs Docker and Docker Compose, copies the repo to the VM, and starts the application stack.
-- [`docker-compose.yml`](docker-compose.yml) defines Caddy, PostgreSQL, Neo4j, backend, and frontend services.
-- [`infra/caddy/Caddyfile`](infra/caddy/Caddyfile) configures HTTPS for [`debtsapp2.macsia.fun`](infra/README.md:7).
+- [`terraform/yandex/`](terraform/yandex) provisions the Ubuntu VM in Yandex Cloud.
+- [`ansible/`](ansible) installs Docker and Docker Compose, copies the repo to the VM, and starts the application stack.
+- [`../docker-compose.yml`](../docker-compose.yml) defines Caddy, PostgreSQL, Neo4j, backend, and frontend services.
+- [`caddy/Caddyfile`](caddy/Caddyfile) configures HTTPS for `debtsapp2.macsia.fun`.
 
 The Terraform VM bootstrap creates the primary admin account as `macsia`, enables SSH key and password login for that account, and keeps direct root SSH login disabled.
 
@@ -18,10 +18,10 @@ cp infra/ansible/vars/deploy-secrets.example.yml infra/ansible/vars/deploy-secre
 
 Edit:
 
-- [`infra/terraform/yandex/terraform.tfvars`](infra/terraform/yandex/terraform.tfvars)
-- [`infra/ansible/vars/deploy-secrets.yml`](infra/ansible/vars/deploy-secrets.yml)
+- `infra/terraform/yandex/terraform.tfvars`
+- `infra/ansible/vars/deploy-secrets.yml`
 
-Set [`app_domain`](infra/terraform/yandex/terraform.tfvars.example:9) to `debtsapp2.macsia.fun` and point its DNS `A` record to the VM public IP before expecting HTTPS issuance to succeed.
+Set `app_domain` to `debtsapp2.macsia.fun` and point its DNS `A` record to the VM public IP before expecting HTTPS issuance to succeed.
 
 Terraform uses the repo-local mirror config in [`infra/terraform/terraformrc`](infra/terraform/terraformrc), so start with:
 
@@ -50,7 +50,7 @@ make render-inventory
 make deploy
 ```
 
-[`make deploy`](../Makefile) runs [`infra/ansible/site.yml`](infra/ansible/site.yml), which installs Docker on the VM, synchronizes the repository, writes the deployment [`.env`](infra/ansible/deploy-docker-compose.yml:104), and starts the stack with Docker Compose.
+[`make deploy`](../Makefile) runs [`ansible/site.yml`](ansible/site.yml), which installs Docker on the VM, synchronizes the repository, writes the deployment `.env`, and starts the stack with Docker Compose.
 
 ## 4. DNS and HTTPS
 
@@ -66,7 +66,7 @@ Then:
 - ensure inbound ports `80` and `443` are reachable from the internet
 - rerun [`make deploy`](../Makefile) if DNS was not ready during the first certificate attempt
 
-Caddy will automatically obtain and renew Let's Encrypt certificates for [`debtsapp2.macsia.fun`](infra/caddy/Caddyfile:5) and [`portainer.macsia.fun`](infra/caddy/Caddyfile:17).
+Caddy will automatically obtain and renew Let's Encrypt certificates for `debtsapp2.macsia.fun` and `portainer.macsia.fun`.
 
 ## 5. Access the application
 

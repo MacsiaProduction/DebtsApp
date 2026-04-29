@@ -27,8 +27,8 @@ describe('NavBar', () => {
 
     expect(screen.getByText(/DebtsApp/i)).toBeInTheDocument();
     expect(screen.getByText(/Транзакции/i)).toBeInTheDocument();
+    expect(screen.getByText(/Новая транзакция/i)).toBeInTheDocument();
     expect(screen.getByText(/Долги/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Добавить/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Профиль/i)).not.toBeInTheDocument();
   });
 

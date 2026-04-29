@@ -17,5 +17,4 @@ public class BotConfiguration {
         api.registerBot(bot);
         return api;
     }
-
 }
