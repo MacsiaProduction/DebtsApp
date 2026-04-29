@@ -123,36 +123,76 @@
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
     - name: Дождаться rollout workloads
-      ansible.builtin.command: >-
-        kubectl rollout status {{ item.kind }}/{{ item.name }}
-        -n {{ item.ns }} --timeout=30s
+      ansible.builtin.shell: |
+        deadline=$((SECONDS + 480))
+        last_output=""
+
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          output="$(kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=30s 2>&1)"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            printf '%s\n' "$output"
+            exit 0
+          fi
+
+          last_output="$output"
+          sleep 10
+        done
+
+        printf '%s\n' "$last_output" >&2
+        exit 1
+      args:
+        executable: /bin/bash
       loop: "{{ rollout_waits }}"
       register: rollout_status
-      retries: 12
-      delay: 10
-      until: rollout_status.rc == 0
       changed_when: false
       failed_when: false
-      ignore_errors: true
 
     - name: Дождаться endpoints для Traefik
-      ansible.builtin.command: >-
-        kubectl -n {{ item.ns }} get endpoints {{ item.name }}
-        -o jsonpath={.subsets[*].addresses[*].ip}
+      ansible.builtin.shell: |
+        deadline=$((SECONDS + 120))
+
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          endpoints="$(kubectl -n {{ item.ns }} get endpoints {{ item.name }} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)"
+          if [ -n "$endpoints" ]; then
+            printf '%s\n' "$endpoints"
+            exit 0
+          fi
+
+          sleep 5
+        done
+
+        exit 1
+      args:
+        executable: /bin/bash
       loop: "{{ service_endpoint_waits }}"
       register: endpoint_status
-      retries: 24
-      delay: 5
-      until: endpoint_status.stdout | length > 0
       changed_when: false
       failed_when: false
-      ignore_errors: true
+
+    - name: Сохранить список неготовых Kubernetes-ресурсов
+      ansible.builtin.set_fact:
+        failed_rollouts: "{{ rollout_status.results | default([]) | rejectattr('rc', 'equalto', 0) | list }}"
+        missing_endpoints: "{{ endpoint_status.results | default([]) | rejectattr('rc', 'equalto', 0) | list }}"
+
+    - name: Показать неготовые rollout
+      when: failed_rollouts | length > 0
+      ansible.builtin.debug:
+        msg: |
+          Workload {{ item.item.kind }}/{{ item.item.name }} in namespace {{ item.item.ns }} is not ready.
+          stdout: {{ item.stdout | default('') }}
+          stderr: {{ item.stderr | default('') }}
+      loop: "{{ failed_rollouts }}"
+
+    - name: Показать сервисы без endpoints
+      when: missing_endpoints | length > 0
+      ansible.builtin.debug:
+        msg: "Service {{ item.item.name }} in namespace {{ item.item.ns }} has no ready endpoints"
+      loop: "{{ missing_endpoints }}"
 
     - name: Собрать диагностику rollout
       when: >
-        (rollout_status.results | default([]) | rejectattr('rc', 'equalto', 0) | list | length > 0)
-        or
-        (endpoint_status.results | default([]) | selectattr('stdout', 'equalto', '') | list | length > 0)
+        (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.shell: |
         set +e
         echo "=== debtsapp pods ==="
@@ -193,8 +233,6 @@
 
     - name: Завершить с ошибкой если workloads или endpoints не готовы
       when: >
-        (rollout_status.results | default([]) | rejectattr('rc', 'equalto', 0) | list | length > 0)
-        or
-        (endpoint_status.results | default([]) | selectattr('stdout', 'equalto', '') | list | length > 0)
+        (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.fail:
         msg: "Some Kubernetes workloads or Traefik service endpoints are not ready; see diagnostics above"
