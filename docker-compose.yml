@@ -57,13 +57,14 @@ services:
     restart: always
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/debtsbot123}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-debtsbot123}
     ports:
       - '7474:7474'
       - '7687:7687'
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-debtsbot123} 'RETURN 1' || exit 1"]
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$${NEO4J_PASSWORD:-debtsbot123}\" 'RETURN 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

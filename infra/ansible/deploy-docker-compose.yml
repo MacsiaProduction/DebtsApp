@@ -132,6 +132,55 @@
           - --build
       args:
         chdir: "{{ app_dir }}"
+      register: compose_up
+      ignore_errors: true
+
+    - name: Show Docker Compose status after failed startup
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - "{{ compose_project_name }}"
+          - ps
+      args:
+        chdir: "{{ app_dir }}"
+      register: failed_compose_status
+      changed_when: false
+      when: compose_up.rc != 0
+
+    - name: Print Docker Compose status after failed startup
+      ansible.builtin.debug:
+        var: failed_compose_status.stdout_lines
+      when: compose_up.rc != 0
+
+    - name: Show recent backend and Neo4j logs after failed startup
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - "{{ compose_project_name }}"
+          - logs
+          - --tail
+          - "120"
+          - debts_bot
+          - debts_neo4j
+      args:
+        chdir: "{{ app_dir }}"
+      register: failed_compose_logs
+      changed_when: false
+      when: compose_up.rc != 0
+
+    - name: Print recent backend and Neo4j logs after failed startup
+      ansible.builtin.debug:
+        var: failed_compose_logs.stdout_lines
+      when: compose_up.rc != 0
+
+    - name: Fail when Docker Compose startup failed
+      ansible.builtin.fail:
+        msg: "Docker Compose startup failed; see compose status and service logs above."
+      when: compose_up.rc != 0
 
     - name: Wait for HTTP port
       ansible.builtin.wait_for:
