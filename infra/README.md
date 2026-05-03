@@ -92,7 +92,7 @@ Load-test example:
 k6 run -e BASE_URL=https://<app_domain> scripts/k6-backend-load.js
 ```
 
-The preferred Lab 3 load test path is the manual GitHub Actions workflow `Load Test: backend HPA`. It runs the same k6 script from the official `grafana/k6` Docker image and uploads `load-summary.json` plus `hpa-evidence.log`. The optional `k6_stages` input accepts comma-separated `duration:target` pairs, for example `30s:10,60s:40,60s:80,30s:0`.
+The preferred Lab 3 load test path is the manual GitHub Actions workflow `Load Test: backend HPA`. On branches where GitHub cannot dispatch a newly added workflow file yet, run the existing manual deploy workflow with `operation=load_test`. Both paths run the same k6 script from the official `grafana/k6` Docker image and upload `load-summary.json` plus `hpa-evidence.log`. The optional `k6_stages` input accepts comma-separated `duration:target` pairs, for example `30s:10,60s:40,60s:80,30s:0`.
 
 If Traefik shows `no available server`, check that `debts-frontend` has ready endpoints:
 
