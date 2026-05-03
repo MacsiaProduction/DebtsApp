@@ -145,6 +145,45 @@
         port: 443
         timeout: 180
 
+    - name: Wait for public frontend through Caddy
+      ansible.builtin.command:
+        argv:
+          - curl
+          - --fail
+          - --silent
+          - --show-error
+          - --location
+          - --max-time
+          - "20"
+          - --resolve
+          - "{{ app_domain }}:443:127.0.0.1"
+          - "https://{{ app_domain }}/"
+      register: frontend_smoke
+      changed_when: false
+      retries: 12
+      delay: 10
+      until: frontend_smoke.rc == 0
+
+    - name: Wait for backend health through Caddy
+      ansible.builtin.command:
+        argv:
+          - curl
+          - --fail
+          - --silent
+          - --show-error
+          - --max-time
+          - "20"
+          - --resolve
+          - "{{ app_domain }}:443:127.0.0.1"
+          - "https://{{ app_domain }}/api/actuator/health"
+      register: backend_health
+      changed_when: false
+      retries: 12
+      delay: 10
+      until:
+        - backend_health.rc == 0
+        - '"\"status\":\"UP\"" in backend_health.stdout'
+
     - name: Show Docker Compose status
       ansible.builtin.command:
         argv:

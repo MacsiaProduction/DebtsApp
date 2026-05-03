@@ -21,7 +21,7 @@ Edit:
 - `infra/terraform/yandex/terraform.tfvars`
 - `infra/ansible/vars/deploy-secrets.yml`
 
-Set `app_domain` to `debtsapp2.macsia.fun` and point its DNS `A` record to the VM public IP before expecting HTTPS issuance to succeed.
+Set `app_domain` to `debtsapp2.macsia.fun` and point its DNS `A` record to the VM public IP before expecting HTTPS issuance to succeed. The current lab-2 VM IP is `37.230.169.243`.
 
 Terraform uses the repo-local mirror config in [`infra/terraform/terraformrc`](infra/terraform/terraformrc), so start with:
 
@@ -42,6 +42,8 @@ export YC_FOLDER_ID="<folder id>"
 make infra-plan
 make infra-apply
 ```
+
+The GitHub deploy workflow runs Terraform from a fresh runner. If Yandex Cloud reports that the VM already exists, [`scripts/terraform_apply.sh`](../scripts/terraform_apply.sh) treats that as non-fatal and deploys to the existing VM resolved by name. For larger environments, move Terraform state to a remote backend instead of relying on this lab shortcut.
 
 ## 3. Render inventory and deploy everything
 
@@ -72,9 +74,24 @@ Caddy will automatically obtain and renew Let's Encrypt certificates for `debtsa
 
 - App: `https://debtsapp2.macsia.fun`
 - Portainer: `https://portainer.macsia.fun`
-- PostgreSQL: `<public_ip>:5432`
-- Neo4j Browser: `http://<public_ip>:7474`
-- Neo4j Bolt: `<public_ip>:7687`
+- PostgreSQL: `37.230.169.243:5432`
+- Neo4j Browser: `http://37.230.169.243:7474`
+- Neo4j Bolt: `37.230.169.243:7687`
+
+## Lab-2 Verification Checklist
+
+- Terraform provisions the VM from [`terraform/yandex/main.tf`](terraform/yandex/main.tf).
+- Ansible installs Docker and starts Compose from [`ansible/deploy-docker-compose.yml`](ansible/deploy-docker-compose.yml).
+- Compose contains backend, frontend, PostgreSQL, Neo4j, Caddy, and Portainer services.
+- CI publishes Docker images to GHCR as `ghcr.io/macsiaproduction/debtsapp-backend:lab2` and `ghcr.io/macsiaproduction/debtsapp-frontend:lab2`.
+- The latest confirmed successful publish run is `https://github.com/MacsiaProduction/DebtsApp/actions/runs/25138164224`.
+- After deploy, verify:
+
+```bash
+curl -I https://debtsapp2.macsia.fun
+curl https://debtsapp2.macsia.fun/api/actuator/health
+curl -I https://portainer.macsia.fun
+```
 
 ## GitHub Actions Secrets
 
