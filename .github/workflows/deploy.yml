@@ -126,3 +126,11 @@ jobs:
 
       - name: Запустить Ansible deploy в k3s
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
+
+      - name: Проверить публичные HTTPS endpoints
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/" >/dev/null
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null

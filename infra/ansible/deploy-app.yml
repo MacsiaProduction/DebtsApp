@@ -33,6 +33,10 @@
     service_endpoint_waits:
       - { name: debts-bot,      ns: "{{ app_namespace }}" }
       - { name: debts-frontend, ns: "{{ app_namespace }}" }
+    route_smoke_checks:
+      - { name: frontend, host: "{{ app_domain }}", url: "https://{{ app_domain }}/" }
+      - { name: backend_health, host: "{{ app_domain }}", url: "https://{{ app_domain }}/api/actuator/health" }
+      - { name: grafana, host: "{{ grafana_domain }}", url: "https://{{ grafana_domain }}/" }
   environment:
     KUBECONFIG: "{{ k3s_kubeconfig }}"
 
@@ -195,6 +199,9 @@
         (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.shell: |
         set +e
+        echo "=== all pods ==="
+        kubectl get pods -A -o wide
+        echo
         echo "=== debtsapp pods ==="
         kubectl -n {{ app_namespace }} get pods -o wide
         echo
@@ -210,6 +217,21 @@
         echo "=== debtsapp ingress ==="
         kubectl -n {{ app_namespace }} get ingress -o wide
         echo
+        echo "=== all ingresses ==="
+        kubectl get ingress -A -o wide
+        echo
+        echo "=== certificates ==="
+        kubectl get certificate,certificaterequest,order,challenge -A
+        echo
+        echo "=== traefik service ==="
+        kubectl -n kube-system get svc traefik -o wide
+        echo
+        echo "=== traefik logs ==="
+        kubectl -n kube-system logs deploy/traefik --tail=200
+        echo
+        echo "=== cert-manager logs ==="
+        kubectl -n cert-manager logs deploy/cert-manager --tail=200
+        echo
         echo "=== recent debtsapp events ==="
         kubectl -n {{ app_namespace }} get events --sort-by=.lastTimestamp | tail -n 80
         echo
@@ -221,6 +243,9 @@
         echo
         echo "=== monitoring pods ==="
         kubectl -n {{ monitoring_namespace }} get pods -o wide
+        echo
+        echo "=== monitoring ingress/service ==="
+        kubectl -n {{ monitoring_namespace }} get ingress,svc,endpoints -o wide
       args:
         executable: /bin/bash
       register: rollout_diagnostics
@@ -236,3 +261,73 @@
         (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.fail:
         msg: "Some Kubernetes workloads or Traefik service endpoints are not ready; see diagnostics above"
+
+    - name: Проверить маршруты Traefik через локальный ingress
+      ansible.builtin.shell: |
+        curl --fail --silent --show-error --location --max-time 30 \
+          --resolve {{ item.host }}:443:127.0.0.1 \
+          {{ item.url | quote }}
+      args:
+        executable: /bin/bash
+      loop: "{{ route_smoke_checks }}"
+      register: route_smoke_status
+      changed_when: false
+      failed_when: false
+
+    - name: Сохранить список неработающих публичных маршрутов
+      ansible.builtin.set_fact:
+        failed_route_smoke_checks: "{{ route_smoke_status.results | default([]) | rejectattr('rc', 'equalto', 0) | list }}"
+
+    - name: Показать неработающие публичные маршруты
+      when: failed_route_smoke_checks | length > 0
+      ansible.builtin.debug:
+        msg: |
+          Route smoke check {{ item.item.name }} failed for {{ item.item.url }}.
+          stdout: {{ item.stdout | default('') }}
+          stderr: {{ item.stderr | default('') }}
+      loop: "{{ failed_route_smoke_checks }}"
+
+    - name: Собрать диагностику ingress/TLS
+      when: failed_route_smoke_checks | length > 0
+      ansible.builtin.shell: |
+        set +e
+        echo "=== all pods ==="
+        kubectl get pods -A -o wide
+        echo
+        echo "=== app ingress describe ==="
+        kubectl -n {{ app_namespace }} describe ingress debtsapp
+        echo
+        echo "=== monitoring ingress describe ==="
+        kubectl -n {{ monitoring_namespace }} describe ingress
+        echo
+        echo "=== certificates ==="
+        kubectl get certificate,certificaterequest,order,challenge -A
+        echo
+        echo "=== traefik service ==="
+        kubectl -n kube-system get svc traefik -o yaml
+        echo
+        echo "=== traefik logs ==="
+        kubectl -n kube-system logs deploy/traefik --tail=300
+        echo
+        echo "=== cert-manager logs ==="
+        kubectl -n cert-manager logs deploy/cert-manager --tail=300
+        echo
+        echo "=== debtsapp services/endpoints ==="
+        kubectl -n {{ app_namespace }} get svc,endpoints -o wide
+        echo
+        echo "=== monitoring services/endpoints ==="
+        kubectl -n {{ monitoring_namespace }} get svc,endpoints -o wide
+      args:
+        executable: /bin/bash
+      register: route_smoke_diagnostics
+      changed_when: false
+
+    - name: Показать диагностику ingress/TLS
+      when: route_smoke_diagnostics is defined and route_smoke_diagnostics.stdout_lines is defined
+      ansible.builtin.debug:
+        var: route_smoke_diagnostics.stdout_lines
+
+    - name: Завершить с ошибкой если публичные маршруты не отвечают
+      when: failed_route_smoke_checks | length > 0
+      ansible.builtin.fail:
+        msg: "One or more Traefik HTTPS routes are not serving correctly; see diagnostics above"

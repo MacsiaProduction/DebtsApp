@@ -39,4 +39,5 @@ make deploy
 - Public app traffic is served through Traefik ingress on `https://<app_domain>`.
 - Frontend traffic goes to `/`, backend traffic goes to `/api`.
 - Backend health and metrics endpoints stay available for probes and Prometheus.
+- Lab 3 deploys must prove public HTTPS access for the frontend, backend health endpoint, and Grafana before the workflow is considered successful.
 - Backend unit tests run with `./gradlew test`; Docker-backed persistence coverage runs with `./gradlew integrationTest`.

@@ -69,6 +69,8 @@ The `make deploy` run configures:
 
 App URL: `https://<app_domain>`. Grafana URL: `https://<grafana_domain>`.
 
+The deploy playbook also performs HTTPS smoke checks through Traefik for the frontend, backend health endpoint, and Grafana. The GitHub deploy workflow repeats those checks from the hosted runner so broken DNS, firewall, TLS, or public ingress routing fails the deployment.
+
 Check Kubernetes routing targets:
 
 ```bash
@@ -76,6 +78,7 @@ kubectl get pods -n debtsapp -o wide
 kubectl get hpa -n debtsapp
 kubectl get svc,endpoints -n debtsapp
 kubectl get servicemonitor -n debtsapp
+kubectl get certificate,challenge,order -A
 ```
 
 Load-test example:
