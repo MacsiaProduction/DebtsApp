@@ -103,6 +103,7 @@ jobs:
           postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
           neo4j_password: ${{ secrets.NEO4J_PASSWORD }}
           jwt_secret: ${{ secrets.JWT_SECRET }}
+          grafana_admin_user: grafana
           grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           bot_token: ${{ secrets.BOT_TOKEN }}
 
@@ -134,3 +135,4 @@ jobs:
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/" >/dev/null
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null
+          curl --fail --silent --show-error --user "grafana:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" --max-time 45 "https://${{ inputs.grafana_domain }}/api/user" >/dev/null

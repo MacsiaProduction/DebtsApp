@@ -21,6 +21,7 @@ def main() -> int:
         f"postgres_password: {yaml_quote(os.environ['POSTGRES_PASSWORD'])}",
         f"neo4j_password: {yaml_quote(os.environ['NEO4J_PASSWORD'])}",
         f"jwt_secret: {yaml_quote(os.environ['JWT_SECRET'])}",
+        f"grafana_admin_user: {yaml_quote(os.environ.get('GRAFANA_ADMIN_USER', 'grafana'))}",
         f"grafana_admin_password: {yaml_quote(os.environ['GRAFANA_ADMIN_PASSWORD'])}",
         f"bot_token: {yaml_quote(os.environ.get('BOT_TOKEN', ''))}",
     ]

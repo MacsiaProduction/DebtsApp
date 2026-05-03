@@ -55,6 +55,7 @@ e2e/test-results/
 .env
 .env.local
 .env.*.local
+local-passwords.env
 frontend/.env
 frontend/.env.local
 infra/ansible/inventory.ini

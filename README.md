@@ -40,4 +40,6 @@ make deploy
 - Frontend traffic goes to `/`, backend traffic goes to `/api`.
 - Backend health and metrics endpoints stay available for probes and Prometheus.
 - Lab 3 deploys must prove public HTTPS access for the frontend, backend health endpoint, and Grafana before the workflow is considered successful.
+- Grafana is deployed with the `grafana` admin user; the generated local password is stored in ignored `local-passwords.env`.
+- Lab 3 load testing is available as the manual `Load Test: backend HPA` GitHub Actions workflow.
 - Backend unit tests run with `./gradlew test`; Docker-backed persistence coverage runs with `./gradlew integrationTest`.

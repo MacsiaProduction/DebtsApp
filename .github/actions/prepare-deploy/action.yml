@@ -36,6 +36,9 @@ inputs:
     required: true
   jwt_secret:
     required: true
+  grafana_admin_user:
+    required: false
+    default: grafana
   grafana_admin_password:
     required: true
   bot_token:
@@ -71,6 +74,7 @@ runs:
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
         JWT_SECRET: ${{ inputs.jwt_secret }}
+        GRAFANA_ADMIN_USER: ${{ inputs.grafana_admin_user }}
         GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
         BOT_TOKEN: ${{ inputs.bot_token }}
       run: python scripts/write_deploy_secrets.py

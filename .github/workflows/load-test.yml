@@ -1,0 +1,111 @@
+name: "Load Test: backend HPA"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_domain:
+        description: Public DebtsApp domain
+        required: false
+        default: debtsapp.macsia.fun
+        type: string
+      vm_name:
+        description: Yandex Cloud VM name
+        required: false
+        default: debtsapp-k3s
+        type: string
+      k6_stages:
+        description: k6 stages as duration:target pairs
+        required: false
+        default: "30s:10,60s:40,60s:80,30s:0"
+        type: string
+
+jobs:
+  load-test:
+    name: Run k6 and collect HPA evidence
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      YC_TOKEN: ${{ secrets.YC_TOKEN }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      VM_NAME: ${{ inputs.vm_name }}
+      BASE_URL: https://${{ inputs.app_domain }}
+      K6_STAGES: ${{ inputs.k6_stages }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
+          chmod 600 ~/.ssh/debtsapp_vm
+
+      - name: Resolve VM host
+        run: |
+          python scripts/resolve_ssh_host.py > /tmp/host.json
+          host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
+          user="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["user"])')"
+          port="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["port"])')"
+          echo "SSH_HOST=${host}" >> "$GITHUB_ENV"
+          echo "SSH_USER=${user}" >> "$GITHUB_ENV"
+          echo "SSH_PORT=${port}" >> "$GITHUB_ENV"
+
+      - name: Run k6 load test and collect HPA evidence
+        run: |
+          set -euo pipefail
+          : > hpa-evidence.log
+          mkdir -p load-results
+
+          (
+            for i in $(seq 1 24); do
+              {
+                echo "=== sample ${i} $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+                ssh -i ~/.ssh/debtsapp_vm -p "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${SSH_USER}@${SSH_HOST}" '
+                  set +e
+                  export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+                  kubectl get hpa -n debtsapp -o wide
+                  echo
+                  kubectl get deploy,pods -n debtsapp -l app=debts-bot -o wide
+                  echo
+                  kubectl top pods -n debtsapp --containers || true
+                '
+              } >> hpa-evidence.log 2>&1
+              sleep 15
+            done
+          ) &
+
+          collector_pid="$!"
+          trap 'kill "$collector_pid" 2>/dev/null || true; wait "$collector_pid" 2>/dev/null || true' EXIT
+
+          docker run --rm \
+            -e BASE_URL="${BASE_URL}" \
+            -e K6_STAGES="${K6_STAGES}" \
+            -v "${PWD}/scripts:/scripts:ro" \
+            -v "${PWD}/load-results:/results" \
+            grafana/k6 run --summary-export /results/load-summary.json /scripts/k6-backend-load.js
+
+      - name: Collect final HPA evidence
+        if: always()
+        run: |
+          {
+            echo "=== final $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+            ssh -i ~/.ssh/debtsapp_vm -p "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${SSH_USER}@${SSH_HOST}" '
+              set +e
+              export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+              kubectl get hpa -n debtsapp -o wide
+              echo
+              kubectl get deploy,pods -n debtsapp -l app=debts-bot -o wide
+              echo
+              kubectl top pods -n debtsapp --containers || true
+            '
+          } >> hpa-evidence.log 2>&1
+
+      - name: Upload load-test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-evidence
+          path: |
+            load-results/load-summary.json
+            hpa-evidence.log

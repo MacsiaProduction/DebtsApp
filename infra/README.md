@@ -69,7 +69,12 @@ The `make deploy` run configures:
 
 App URL: `https://<app_domain>`. Grafana URL: `https://<grafana_domain>`.
 
-The deploy playbook also performs HTTPS smoke checks through Traefik for the frontend, backend health endpoint, and Grafana. The GitHub deploy workflow repeats those checks from the hosted runner so broken DNS, firewall, TLS, or public ingress routing fails the deployment.
+Grafana login:
+
+- user: `grafana`
+- password: generated locally in ignored `local-passwords.env` and stored in the GitHub Actions secret `GRAFANA_ADMIN_PASSWORD`
+
+The deploy playbook also performs HTTPS smoke checks through Traefik for the frontend, backend health endpoint, and Grafana. The GitHub deploy workflow repeats those checks from the hosted runner and validates Grafana `/api/user` with the configured credentials, so broken DNS, firewall, TLS, public ingress routing, or Grafana auth fails the deployment.
 
 Check Kubernetes routing targets:
 
@@ -86,6 +91,8 @@ Load-test example:
 ```bash
 k6 run -e BASE_URL=https://<app_domain> scripts/k6-backend-load.js
 ```
+
+The preferred Lab 3 load test path is the manual GitHub Actions workflow `Load Test: backend HPA`. It runs the same k6 script from the official `grafana/k6` Docker image and uploads `load-summary.json` plus `hpa-evidence.log`. The optional `k6_stages` input accepts comma-separated `duration:target` pairs, for example `30s:10,60s:40,60s:80,30s:0`.
 
 If Traefik shows `no available server`, check that `debts-frontend` has ready endpoints:
 
