@@ -188,6 +188,7 @@ jobs:
           set -euo pipefail
           : > hpa-evidence.log
           mkdir -p load-results
+          chmod 777 load-results
 
           (
             for i in $(seq 1 24); do
@@ -196,6 +197,7 @@ jobs:
                 ssh -i ~/.ssh/debtsapp_vm -p "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${SSH_USER}@${SSH_HOST}" '
                   set +e
                   export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+                  export KUBECTL_KUBERC=false
                   kubectl get hpa -n debtsapp -o wide
                   echo
                   kubectl get deploy,pods -n debtsapp -l app=debts-bot -o wide
@@ -217,6 +219,8 @@ jobs:
             -v "${PWD}/load-results:/results" \
             grafana/k6 run --summary-export /results/load-summary.json /scripts/k6-backend-load.js
 
+          test -s load-results/load-summary.json
+
       - name: Собрать финальный HPA evidence
         if: always()
         run: |
@@ -225,6 +229,7 @@ jobs:
             ssh -i ~/.ssh/debtsapp_vm -p "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${SSH_USER}@${SSH_HOST}" '
               set +e
               export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+              export KUBECTL_KUBERC=false
               kubectl get hpa -n debtsapp -o wide
               echo
               kubectl get deploy,pods -n debtsapp -l app=debts-bot -o wide
