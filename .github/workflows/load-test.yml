@@ -1,4 +1,4 @@
-name: "Load Test: backend HPA"
+name: "Load Test"
 
 on:
   workflow_dispatch:
