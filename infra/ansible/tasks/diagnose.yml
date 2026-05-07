@@ -1,0 +1,64 @@
+---
+- name: Собрать и показать диагностику Kubernetes
+  ansible.builtin.shell: |
+    set +e
+    export KUBECONFIG="{{ k3s_kubeconfig }}"
+
+    echo "=== all pods ==="
+    kubectl get pods -A -o wide
+    echo
+
+    echo "=== debtsapp pods / deployments / statefulsets ==="
+    kubectl -n {{ app_namespace }} get pods,deployments,statefulsets -o wide
+    echo
+
+    echo "=== debtsapp services / endpoints / ingress ==="
+    kubectl -n {{ app_namespace }} get svc,endpoints,ingress -o wide
+    echo
+
+    echo "=== all ingresses ==="
+    kubectl get ingress -A -o wide
+    echo
+
+    echo "=== backend describe ==="
+    kubectl -n {{ app_namespace }} describe deployment debts-bot
+    echo
+
+    echo "=== frontend describe ==="
+    kubectl -n {{ app_namespace }} describe deployment debts-frontend
+    echo
+
+    echo "=== ingress describe ==="
+    kubectl -n {{ app_namespace }} describe ingress debtsapp 2>/dev/null || true
+    echo
+
+    echo "=== certificates ==="
+    kubectl get certificate,certificaterequest,order,challenge -A
+    echo
+
+    echo "=== traefik service ==="
+    kubectl -n kube-system get svc traefik -o wide
+    echo
+
+    echo "=== traefik logs ==="
+    kubectl -n kube-system logs deploy/traefik --tail=300
+    echo
+
+    echo "=== cert-manager logs ==="
+    kubectl -n cert-manager logs deploy/cert-manager --tail=300
+    echo
+
+    echo "=== recent debtsapp events ==="
+    kubectl -n {{ app_namespace }} get events --sort-by=.lastTimestamp | tail -n 80
+    echo
+
+    echo "=== monitoring pods / ingress / services ==="
+    kubectl -n {{ monitoring_namespace }} get pods,ingress,svc,endpoints -o wide
+  args:
+    executable: /bin/bash
+  register: kubectl_diag
+  changed_when: false
+
+- name: Показать диагностику
+  ansible.builtin.debug:
+    var: kubectl_diag.stdout_lines

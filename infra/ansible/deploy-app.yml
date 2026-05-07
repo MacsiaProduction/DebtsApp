@@ -6,16 +6,6 @@
   vars_files:
     - vars/deploy-secrets.yml
   vars:
-    app_manifest_templates:
-      - 10-namespace.yaml.j2
-      - 20-secrets-config.yaml.j2
-      - 30-postgres.yaml.j2
-      - 40-neo4j.yaml.j2
-      - 50-backend.yaml.j2
-      - 60-frontend.yaml.j2
-      - 70-ingress.yaml.j2
-      - 80-hpa.yaml.j2
-      - 90-monitoring.yaml.j2
     helm_repos:
       - { name: jetstack,             url: "https://charts.jetstack.io" }
       - { name: prometheus-community, url: "https://prometheus-community.github.io/helm-charts" }
@@ -34,9 +24,9 @@
       - { name: debts-bot,      ns: "{{ app_namespace }}" }
       - { name: debts-frontend, ns: "{{ app_namespace }}" }
     route_smoke_checks:
-      - { name: frontend, host: "{{ app_domain }}", url: "https://{{ app_domain }}/" }
+      - { name: frontend,       host: "{{ app_domain }}", url: "https://{{ app_domain }}/" }
       - { name: backend_health, host: "{{ app_domain }}", url: "https://{{ app_domain }}/api/actuator/health" }
-      - { name: grafana, host: "{{ grafana_domain }}", url: "https://{{ grafana_domain }}/" }
+      - { name: grafana,        host: "{{ grafana_domain }}", url: "https://{{ grafana_domain }}/" }
   environment:
     KUBECONFIG: "{{ k3s_kubeconfig }}"
 
@@ -104,10 +94,10 @@
 
     - name: Сформировать манифесты приложения
       ansible.builtin.template:
-        src: "{{ playbook_dir }}/../k8s/{{ item }}"
-        dest: "{{ manifest_dir }}/app/{{ item | regex_replace('\\.j2$', '') }}"
+        src: "{{ item }}"
+        dest: "{{ manifest_dir }}/app/{{ item | basename | regex_replace('\\.j2$', '') }}"
         mode: "0644"
-      loop: "{{ app_manifest_templates }}"
+      with_fileglob: "{{ playbook_dir }}/../k8s/[0-9]*.yaml.j2"
 
     - name: Применить манифест ClusterIssuer
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/00-cluster-issuer.yaml
@@ -127,26 +117,7 @@
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
     - name: Дождаться rollout workloads
-      ansible.builtin.shell: |
-        deadline=$((SECONDS + 480))
-        last_output=""
-
-        while [ "$SECONDS" -lt "$deadline" ]; do
-          output="$(kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=30s 2>&1)"
-          rc=$?
-          if [ "$rc" -eq 0 ]; then
-            printf '%s\n' "$output"
-            exit 0
-          fi
-
-          last_output="$output"
-          sleep 10
-        done
-
-        printf '%s\n' "$last_output" >&2
-        exit 1
-      args:
-        executable: /bin/bash
+      ansible.builtin.command: kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=480s
       loop: "{{ rollout_waits }}"
       register: rollout_status
       changed_when: false
@@ -155,17 +126,14 @@
     - name: Дождаться endpoints для Traefik
       ansible.builtin.shell: |
         deadline=$((SECONDS + 120))
-
         while [ "$SECONDS" -lt "$deadline" ]; do
           endpoints="$(kubectl -n {{ item.ns }} get endpoints {{ item.name }} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)"
           if [ -n "$endpoints" ]; then
             printf '%s\n' "$endpoints"
             exit 0
           fi
-
           sleep 5
         done
-
         exit 1
       args:
         executable: /bin/bash
@@ -182,83 +150,21 @@
     - name: Показать неготовые rollout
       when: failed_rollouts | length > 0
       ansible.builtin.debug:
-        msg: |
-          Workload {{ item.item.kind }}/{{ item.item.name }} in namespace {{ item.item.ns }} is not ready.
-          stdout: {{ item.stdout | default('') }}
-          stderr: {{ item.stderr | default('') }}
+        msg: "Workload {{ item.item.kind }}/{{ item.item.name }} in {{ item.item.ns }} is not ready: {{ item.stderr | default('') }}"
       loop: "{{ failed_rollouts }}"
 
     - name: Показать сервисы без endpoints
       when: missing_endpoints | length > 0
       ansible.builtin.debug:
-        msg: "Service {{ item.item.name }} in namespace {{ item.item.ns }} has no ready endpoints"
+        msg: "Service {{ item.item.name }} in {{ item.item.ns }} has no ready endpoints"
       loop: "{{ missing_endpoints }}"
 
     - name: Собрать диагностику rollout
-      when: >
-        (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
-      ansible.builtin.shell: |
-        set +e
-        echo "=== all pods ==="
-        kubectl get pods -A -o wide
-        echo
-        echo "=== debtsapp pods ==="
-        kubectl -n {{ app_namespace }} get pods -o wide
-        echo
-        echo "=== debtsapp deployments ==="
-        kubectl -n {{ app_namespace }} get deployments -o wide
-        echo
-        echo "=== debtsapp statefulsets ==="
-        kubectl -n {{ app_namespace }} get statefulsets -o wide
-        echo
-        echo "=== debtsapp services/endpoints ==="
-        kubectl -n {{ app_namespace }} get svc,endpoints -o wide
-        echo
-        echo "=== debtsapp ingress ==="
-        kubectl -n {{ app_namespace }} get ingress -o wide
-        echo
-        echo "=== all ingresses ==="
-        kubectl get ingress -A -o wide
-        echo
-        echo "=== certificates ==="
-        kubectl get certificate,certificaterequest,order,challenge -A
-        echo
-        echo "=== traefik service ==="
-        kubectl -n kube-system get svc traefik -o wide
-        echo
-        echo "=== traefik logs ==="
-        kubectl -n kube-system logs deploy/traefik --tail=200
-        echo
-        echo "=== cert-manager logs ==="
-        kubectl -n cert-manager logs deploy/cert-manager --tail=200
-        echo
-        echo "=== recent debtsapp events ==="
-        kubectl -n {{ app_namespace }} get events --sort-by=.lastTimestamp | tail -n 80
-        echo
-        echo "=== frontend describe ==="
-        kubectl -n {{ app_namespace }} describe deployment debts-frontend
-        echo
-        echo "=== backend describe ==="
-        kubectl -n {{ app_namespace }} describe deployment debts-bot
-        echo
-        echo "=== monitoring pods ==="
-        kubectl -n {{ monitoring_namespace }} get pods -o wide
-        echo
-        echo "=== monitoring ingress/service ==="
-        kubectl -n {{ monitoring_namespace }} get ingress,svc,endpoints -o wide
-      args:
-        executable: /bin/bash
-      register: rollout_diagnostics
-      changed_when: false
-
-    - name: Показать диагностику rollout
-      when: rollout_diagnostics is defined and rollout_diagnostics.stdout_lines is defined
-      ansible.builtin.debug:
-        var: rollout_diagnostics.stdout_lines
+      when: (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
+      ansible.builtin.include_tasks: tasks/diagnose.yml
 
     - name: Завершить с ошибкой если workloads или endpoints не готовы
-      when: >
-        (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
+      when: (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.fail:
         msg: "Some Kubernetes workloads or Traefik service endpoints are not ready; see diagnostics above"
 
@@ -281,51 +187,12 @@
     - name: Показать неработающие публичные маршруты
       when: failed_route_smoke_checks | length > 0
       ansible.builtin.debug:
-        msg: |
-          Route smoke check {{ item.item.name }} failed for {{ item.item.url }}.
-          stdout: {{ item.stdout | default('') }}
-          stderr: {{ item.stderr | default('') }}
+        msg: "Route smoke check {{ item.item.name }} failed for {{ item.item.url }}: {{ item.stderr | default('') }}"
       loop: "{{ failed_route_smoke_checks }}"
 
     - name: Собрать диагностику ingress/TLS
       when: failed_route_smoke_checks | length > 0
-      ansible.builtin.shell: |
-        set +e
-        echo "=== all pods ==="
-        kubectl get pods -A -o wide
-        echo
-        echo "=== app ingress describe ==="
-        kubectl -n {{ app_namespace }} describe ingress debtsapp
-        echo
-        echo "=== monitoring ingress describe ==="
-        kubectl -n {{ monitoring_namespace }} describe ingress
-        echo
-        echo "=== certificates ==="
-        kubectl get certificate,certificaterequest,order,challenge -A
-        echo
-        echo "=== traefik service ==="
-        kubectl -n kube-system get svc traefik -o yaml
-        echo
-        echo "=== traefik logs ==="
-        kubectl -n kube-system logs deploy/traefik --tail=300
-        echo
-        echo "=== cert-manager logs ==="
-        kubectl -n cert-manager logs deploy/cert-manager --tail=300
-        echo
-        echo "=== debtsapp services/endpoints ==="
-        kubectl -n {{ app_namespace }} get svc,endpoints -o wide
-        echo
-        echo "=== monitoring services/endpoints ==="
-        kubectl -n {{ monitoring_namespace }} get svc,endpoints -o wide
-      args:
-        executable: /bin/bash
-      register: route_smoke_diagnostics
-      changed_when: false
-
-    - name: Показать диагностику ingress/TLS
-      when: route_smoke_diagnostics is defined and route_smoke_diagnostics.stdout_lines is defined
-      ansible.builtin.debug:
-        var: route_smoke_diagnostics.stdout_lines
+      ansible.builtin.include_tasks: tasks/diagnose.yml
 
     - name: Завершить с ошибкой если публичные маршруты не отвечают
       when: failed_route_smoke_checks | length > 0

@@ -20,9 +20,10 @@ inputs:
     required: true
   acme_email:
     required: true
-  backend_image:
-    required: true
-  frontend_image:
+  image_tag:
+    required: false
+    default: lab3
+  repository_owner:
     required: true
   ghcr_username:
     required: false
@@ -48,7 +49,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Записать переменные Terraform
+    - name: Записать переменные Terraform и секреты Ansible
       shell: bash
       env:
         CLOUD_ID: ${{ inputs.cloud_id }}
@@ -58,17 +59,10 @@ runs:
         VM_NAME: ${{ inputs.vm_name }}
         ZONE: ${{ inputs.zone }}
         APP_DOMAIN: ${{ inputs.app_domain }}
-        ACME_EMAIL: ${{ inputs.acme_email }}
-      run: python scripts/write_terraform_vars.py
-
-    - name: Записать переменные и секреты Ansible
-      shell: bash
-      env:
-        APP_DOMAIN: ${{ inputs.app_domain }}
         GRAFANA_DOMAIN: ${{ inputs.grafana_domain }}
         ACME_EMAIL: ${{ inputs.acme_email }}
-        BACKEND_IMAGE: ${{ inputs.backend_image }}
-        FRONTEND_IMAGE: ${{ inputs.frontend_image }}
+        BACKEND_IMAGE: ghcr.io/${{ inputs.repository_owner }}/debtsapp-backend:${{ inputs.image_tag }}
+        FRONTEND_IMAGE: ghcr.io/${{ inputs.repository_owner }}/debtsapp-frontend:${{ inputs.image_tag }}
         GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
         GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
@@ -77,4 +71,4 @@ runs:
         GRAFANA_ADMIN_USER: ${{ inputs.grafana_admin_user }}
         GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
         BOT_TOKEN: ${{ inputs.bot_token }}
-      run: python scripts/write_deploy_secrets.py
+      run: python scripts/write_deploy_inputs.py

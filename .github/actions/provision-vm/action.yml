@@ -1,0 +1,34 @@
+name: Provision VM and prepare inventory
+description: Runs Terraform to create/update the VM, then resolves its SSH host, renders the Ansible inventory, and waits for SSH to be available.
+
+inputs:
+  tf_dir:
+    required: false
+    default: infra/terraform/yandex
+  inventory_path:
+    required: false
+    default: infra/ansible/inventory.ini
+
+runs:
+  using: composite
+  steps:
+    - name: Terraform init and apply
+      shell: bash
+      env:
+        TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
+      run: |
+        terraform -chdir="${{ inputs.tf_dir }}" init
+        bash scripts/terraform_apply.sh "${{ inputs.tf_dir }}"
+
+    - name: Resolve VM host and render Ansible inventory
+      shell: bash
+      run: |
+        python scripts/resolve_ssh_host.py > /tmp/host.json
+        SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
+          bash scripts/render-ansible-inventory.sh /tmp/host.json > "${{ inputs.inventory_path }}"
+
+    - name: Wait for SSH on VM
+      shell: bash
+      run: |
+        host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
+        bash scripts/wait_for_ssh.sh "$host"

@@ -36,10 +36,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare SSH key
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
-          chmod 600 ~/.ssh/debtsapp_vm
+        uses: ./.github/actions/ssh-setup
+        with:
+          ssh_private_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
       - name: Resolve VM host
         run: |

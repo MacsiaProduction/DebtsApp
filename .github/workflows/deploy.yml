@@ -43,48 +43,20 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
-      TF_DIR: infra/terraform/yandex
       ANSIBLE_CONFIG: infra/ansible/ansible.cfg
       YC_TOKEN: ${{ secrets.YC_TOKEN }}
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       VM_NAME: ${{ inputs.vm_name }}
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Разрешить запуск deploy-скриптов
-        run: chmod +x scripts/*.sh scripts/*.py
-
-      - name: Установить Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Set up deploy tooling (Terraform, Python, Ansible, SSH)
+        uses: ./.github/actions/setup-deploy-tooling
         with:
-          terraform_wrapper: false
+          ssh_private_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
-      - name: Установить Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Установить Ansible
-        run: python -m pip install --upgrade pip ansible
-
-      - name: Записать SSH-ключ для VM
-        run: |
-          # Ключ нужен Ansible для подключения к созданной VM.
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/debtsapp_vm
-          chmod 600 ~/.ssh/debtsapp_vm
-
-      - name: Подготовить имена Docker-образов
-        run: |
-          # Deploy берет один тег для backend и frontend, по умолчанию это lab3.
-          image_namespace="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
-          {
-            echo "BACKEND_IMAGE=${image_namespace}/debtsapp-backend:${{ inputs.image_tag }}"
-            echo "FRONTEND_IMAGE=${image_namespace}/debtsapp-frontend:${{ inputs.image_tag }}"
-          } >> "$GITHUB_ENV"
-
-      - name: Подготовить переменные Terraform и Ansible
+      - name: Render Terraform vars and Ansible secrets
         uses: ./.github/actions/prepare-deploy
         with:
           cloud_id: ${{ secrets.YC_CLOUD_ID }}
@@ -96,8 +68,8 @@ jobs:
           app_domain: ${{ inputs.app_domain }}
           grafana_domain: ${{ inputs.grafana_domain }}
           acme_email: ${{ inputs.acme_email }}
-          backend_image: ${{ env.BACKEND_IMAGE }}
-          frontend_image: ${{ env.FRONTEND_IMAGE }}
+          image_tag: ${{ inputs.image_tag }}
+          repository_owner: ${{ github.repository_owner }}
           ghcr_username: ${{ secrets.GHCR_PULL_USERNAME }}
           ghcr_token: ${{ secrets.GHCR_PULL_TOKEN }}
           postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
@@ -107,31 +79,15 @@ jobs:
           grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           bot_token: ${{ secrets.BOT_TOKEN }}
 
-      - name: Инициализировать Terraform
-        run: terraform -chdir="$TF_DIR" init
+      - name: Provision VM and prepare inventory
+        uses: ./.github/actions/provision-vm
 
-      - name: Создать или обновить VM
-        run: scripts/terraform_apply.sh "$TF_DIR"
-
-      - name: Сформировать inventory для Ansible
-        run: |
-          # Адрес VM берем из Terraform output или Yandex Cloud API.
-          python scripts/resolve_ssh_host.py > /tmp/host.json
-          SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
-            scripts/render-ansible-inventory.sh /tmp/host.json > infra/ansible/inventory.ini
-
-      - name: Дождаться SSH на VM
-        run: |
-          host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
-          scripts/wait_for_ssh.sh "$host"
-
-      - name: Запустить Ansible deploy в k3s
+      - name: Run Ansible deploy in k3s
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
 
-      - name: Проверить публичные HTTPS endpoints
+      - name: Verify public HTTPS endpoints
         run: |
           set -euo pipefail
-
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/" >/dev/null
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null
