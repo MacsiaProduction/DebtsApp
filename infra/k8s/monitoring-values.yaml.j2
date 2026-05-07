@@ -21,6 +21,8 @@ grafana:
         hosts:
           - {{ grafana_domain | quote }}
   sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
     dashboards:
       enabled: true
       searchNamespace: ALL
