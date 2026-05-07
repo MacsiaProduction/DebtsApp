@@ -1,0 +1,39 @@
+name: "Load Test: backend HPA"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_domain:
+        description: Публичный DNS для DebtsApp
+        required: false
+        default: debtsapp.macsia.fun
+        type: string
+      vm_name:
+        description: Имя VM в Yandex Cloud
+        required: false
+        default: debtsapp-k3s
+        type: string
+      k6_stages:
+        description: k6 stages как пары duration:target
+        required: false
+        default: "30s:10,60s:40,60s:80,30s:0"
+        type: string
+
+jobs:
+  load-test:
+    name: Запустить k6 и собрать HPA evidence
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      BASE_URL: https://${{ inputs.app_domain }}
+      K6_STAGES: ${{ inputs.k6_stages }}
+    steps:
+      - name: Получить код репозитория
+        uses: actions/checkout@v4
+
+      - name: Mock нагрузочного теста
+        run: |
+          echo "BASE_URL=${BASE_URL}"
+          echo "K6_STAGES=${K6_STAGES}"
+          echo "Нагрузочное тестирование: mock-режим."
