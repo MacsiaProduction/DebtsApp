@@ -117,11 +117,14 @@
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
     - name: Дождаться rollout workloads
-      ansible.builtin.command: kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=480s
+      ansible.builtin.command: kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=120s
       loop: "{{ rollout_waits }}"
       register: rollout_status
       changed_when: false
       failed_when: false
+      retries: 4
+      delay: 15
+      until: rollout_status.rc == 0
 
     - name: Дождаться endpoints для Traefik
       ansible.builtin.shell: |
