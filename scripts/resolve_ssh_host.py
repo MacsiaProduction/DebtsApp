@@ -6,6 +6,8 @@ import json
 import os
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -28,16 +30,35 @@ def terraform_output(tf_dir: str, name: str) -> str:
     return result.stdout.strip()
 
 
+def _request_with_retry(req: urllib.request.Request, *, retries: int = 4, timeout: int = 30) -> bytes:
+    delay = 5
+    last_exc: Exception = RuntimeError("no attempts made")
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return response.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500:
+                raise
+            last_exc = exc
+        except OSError as exc:
+            last_exc = exc
+        if attempt < retries - 1:
+            print(f"YC API error ({last_exc}), retrying in {delay}s…", file=sys.stderr)
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+    raise last_exc
+
+
 def exchange_oauth_for_iam(oauth_token: str) -> str:
     payload = json.dumps({"yandexPassportOauthToken": oauth_token}).encode("utf-8")
-    request = urllib.request.Request(
+    req = urllib.request.Request(
         IAM_TOKENS_URL,
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        body = json.loads(response.read().decode("utf-8"))
+    body = json.loads(_request_with_retry(req).decode("utf-8"))
     token = body.get("iamToken")
     if not token:
         raise RuntimeError("IAM token exchange returned empty iamToken")
@@ -46,12 +67,8 @@ def exchange_oauth_for_iam(oauth_token: str) -> str:
 
 def fetch_instances(iam_token: str, folder_id: str) -> dict:
     url = f"{COMPUTE_INSTANCES_URL}?folderId={folder_id}"
-    request = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {iam_token}"},
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {iam_token}"})
+    return json.loads(_request_with_retry(req).decode("utf-8"))
 
 
 def extract_public_ip(instances: dict, vm_name: str) -> str:
