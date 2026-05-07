@@ -1,14 +1,10 @@
 name: "Load Test"
 
 on:
-  push:
-    branches: [ lab3 ]
-    paths:
-      - 'scripts/k6-backend-load.js'
   workflow_dispatch:
     inputs:
       app_domain:
-        description: Public DebtsApp domain
+        description: Public domain
         required: false
         default: debtsapp.macsia.fun
         type: string
