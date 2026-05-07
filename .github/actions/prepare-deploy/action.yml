@@ -61,8 +61,8 @@ runs:
         APP_DOMAIN: ${{ inputs.app_domain }}
         GRAFANA_DOMAIN: ${{ inputs.grafana_domain }}
         ACME_EMAIL: ${{ inputs.acme_email }}
-        BACKEND_IMAGE: ghcr.io/${{ inputs.repository_owner }}/debtsapp-backend:${{ inputs.image_tag }}
-        FRONTEND_IMAGE: ghcr.io/${{ inputs.repository_owner }}/debtsapp-frontend:${{ inputs.image_tag }}
+        REPOSITORY_OWNER: ${{ inputs.repository_owner }}
+        IMAGE_TAG: ${{ inputs.image_tag }}
         GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
         GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
@@ -71,4 +71,8 @@ runs:
         GRAFANA_ADMIN_USER: ${{ inputs.grafana_admin_user }}
         GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
         BOT_TOKEN: ${{ inputs.bot_token }}
-      run: python scripts/write_deploy_inputs.py
+      run: |
+        owner_lc="${REPOSITORY_OWNER,,}"
+        export BACKEND_IMAGE="ghcr.io/${owner_lc}/debtsapp-backend:${IMAGE_TAG}"
+        export FRONTEND_IMAGE="ghcr.io/${owner_lc}/debtsapp-frontend:${IMAGE_TAG}"
+        python scripts/write_deploy_inputs.py

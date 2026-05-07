@@ -116,15 +116,29 @@
     - name: Применить манифесты приложения
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
+    - name: Проверить ранние ошибки pod
+      ansible.builtin.shell: |
+        bad="$(kubectl -n {{ app_namespace }} get pods --no-headers \
+          -o 'custom-columns=NAME:.metadata.name,REASON:.status.containerStatuses[*].state.waiting.reason' \
+          2>/dev/null | grep -E 'InvalidImageName|ImagePullBackOff|ErrImagePull|CreateContainerConfigError' || true)"
+        if [ -n "$bad" ]; then printf '%s\n' "$bad" >&2; exit 1; fi
+      args:
+        executable: /bin/bash
+      register: pod_precheck
+      changed_when: false
+      failed_when: false
+
+    - name: Завершить с ошибкой если pod в неисправимом состоянии
+      when: pod_precheck.rc != 0
+      ansible.builtin.fail:
+        msg: "Detected pods in unrecoverable state (InvalidImageName / ImagePullBackOff). Check image registry path."
+
     - name: Дождаться rollout workloads
-      ansible.builtin.command: kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=120s
+      ansible.builtin.command: kubectl rollout status {{ item.kind }}/{{ item.name }} -n {{ item.ns }} --timeout=300s
       loop: "{{ rollout_waits }}"
       register: rollout_status
       changed_when: false
       failed_when: false
-      retries: 4
-      delay: 15
-      until: rollout_status.rc == 0
 
     - name: Дождаться endpoints для Traefik
       ansible.builtin.shell: |
