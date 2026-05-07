@@ -1,6 +1,13 @@
 grafana:
   adminUser: {{ grafana_admin_user | default('grafana') | quote }}
   adminPassword: {{ grafana_admin_password | quote }}
+  additionalDataSources:
+    - name: Prometheus
+      type: prometheus
+      uid: PROMETHEUS
+      url: http://{{ monitoring_release_name }}-prometheus.{{ monitoring_namespace }}.svc:9090
+      access: proxy
+      isDefault: true
   ingress:
     enabled: true
     ingressClassName: traefik
