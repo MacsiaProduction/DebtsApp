@@ -72,7 +72,7 @@ jobs:
   backend-integration:
     name: "Backend: integration-тесты"
     runs-on: ubuntu-latest
-    needs: backend-test
+    needs: frontend-build
     steps:
       - name: Получить код репозитория
         uses: actions/checkout@v4
@@ -101,6 +101,7 @@ jobs:
   frontend-test:
     name: "Frontend: unit-тесты"
     runs-on: ubuntu-latest
+    needs: backend-build
     defaults:
       run:
         working-directory: frontend
