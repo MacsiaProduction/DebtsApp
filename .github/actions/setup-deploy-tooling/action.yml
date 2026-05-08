@@ -1,0 +1,31 @@
+name: Set up deploy tooling
+description: Installs Terraform, Python, Ansible, rsync, and writes the deploy SSH key.
+
+inputs:
+  ssh_private_key:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_wrapper: false
+
+    - name: Install Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Ansible and rsync
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip ansible
+        sudo apt-get update
+        sudo apt-get install -y rsync
+
+    - name: Write SSH key
+      uses: ./.github/actions/ssh-setup
+      with:
+        ssh_private_key: ${{ inputs.ssh_private_key }}

@@ -1,0 +1,16 @@
+name: SSH key setup
+description: Writes a deploy SSH private key to ~/.ssh/debtsapp_vm
+
+inputs:
+  ssh_private_key:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Write SSH private key to ~/.ssh/debtsapp_vm
+      shell: bash
+      run: |
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "${{ inputs.ssh_private_key }}" > ~/.ssh/debtsapp_vm
+        chmod 600 ~/.ssh/debtsapp_vm

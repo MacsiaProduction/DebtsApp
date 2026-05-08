@@ -34,7 +34,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Записать переменные Terraform
+    - name: Render Terraform vars and Ansible secrets
       shell: bash
       env:
         CLOUD_ID: ${{ inputs.cloud_id }}
@@ -44,17 +44,10 @@ runs:
         VM_NAME: ${{ inputs.vm_name }}
         ZONE: ${{ inputs.zone }}
         APP_DOMAIN: ${{ inputs.app_domain }}
-        ACME_EMAIL: ${{ inputs.acme_email }}
-      run: python scripts/write_terraform_vars.py
-
-    - name: Записать секреты Ansible deploy
-      shell: bash
-      env:
-        APP_DOMAIN: ${{ inputs.app_domain }}
         PORTAINER_DOMAIN: ${{ inputs.portainer_domain }}
         ACME_EMAIL: ${{ inputs.acme_email }}
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
         JWT_SECRET: ${{ inputs.jwt_secret }}
         BOT_TOKEN: ${{ inputs.bot_token }}
-      run: python scripts/write_deploy_secrets.py
+      run: python scripts/write_deploy_inputs.py

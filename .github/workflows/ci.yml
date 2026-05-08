@@ -11,29 +11,23 @@ jobs:
     name: "Backend: unit-тесты"
     runs-on: ubuntu-latest
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Установить Java 21 для backend
+      - name: Set up Java 21 with Gradle cache
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Восстановить кеш Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-      - name: Запустить unit-тесты backend
+      - name: Run backend unit tests
         working-directory: backend
         run: ./gradlew test --no-daemon
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - name: Сохранить отчет unit-тестов backend
+      - name: Upload backend unit-test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -45,52 +39,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: backend-test
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Установить Java 21 для backend
+      - name: Set up Java 21 with Gradle cache
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Восстановить кеш Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-      - name: Собрать backend artifact
+      - name: Compile backend
         working-directory: backend
-        run: ./gradlew assemble -x test --no-daemon
+        run: ./gradlew classes --no-daemon
 
   backend-integration:
     name: "Backend: integration-тесты"
     runs-on: ubuntu-latest
     needs: frontend-build
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Установить Java 21 для backend
+      - name: Set up Java 21 with Gradle cache
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Восстановить кеш Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*', 'backend/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-      - name: Запустить integration-тесты backend
+      - name: Run backend integration tests
         working-directory: backend
         run: ./gradlew integrationTest --no-daemon
         env:
@@ -104,20 +82,20 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Установить Node.js для frontend
+      - name: Set up Node.js with npm cache
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Установить зависимости frontend
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Запустить unit-тесты frontend
+      - name: Run frontend unit tests
         run: npm test -- --watchAll=false
         env:
           CI: "true"
@@ -130,20 +108,20 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Установить Node.js для frontend
+      - name: Set up Node.js with npm cache
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Установить зависимости frontend
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Собрать frontend для production
+      - name: Build frontend for production
         run: npm run build
 
   publish-images:
@@ -158,15 +136,14 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Получить код репозитория
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Подготовить namespace GHCR
+      - name: Prepare GHCR namespace
         run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
-      - name: Подготовить теги Docker-образов
+      - name: Prepare Docker image tags
         run: |
-          # SHA-тег нужен для точной версии, branch-тег нужен для lab2/latest deploy.
           backend_image="${IMAGE_NAMESPACE}/debtsapp-backend"
           frontend_image="${IMAGE_NAMESPACE}/debtsapp-frontend"
 
@@ -192,14 +169,14 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_ENV"
 
-      - name: Авторизоваться в GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Собрать и отправить backend-образ
+      - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -207,7 +184,7 @@ jobs:
           push: true
           tags: ${{ env.BACKEND_IMAGE_TAGS }}
 
-      - name: Собрать и отправить frontend-образ
+      - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
