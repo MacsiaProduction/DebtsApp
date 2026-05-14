@@ -38,9 +38,7 @@ runs:
           cancelled) EMOJI="⏸" ;;
           *)         EMOJI="⚪" ;;
         esac
-        TEXT="${EMOJI} *${JOB_NAME}*
-Branch: \`${REF_NAME}\` | ${STATUS}
-[${WORKFLOW}](${RUN_URL})"
+        TEXT="${EMOJI} *${JOB_NAME}*"$'\n'"Branch: \`${REF_NAME}\` | ${STATUS}"$'\n'"[${WORKFLOW}](${RUN_URL})"
 
         IFS=',' read -ra IDS <<< "$CHAT_IDS"
         for raw_id in "${IDS[@]}"; do
