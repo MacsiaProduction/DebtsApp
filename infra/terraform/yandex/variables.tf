@@ -75,7 +75,7 @@ variable "vm_cores" {
 variable "vm_memory_gb" {
   description = "RAM size in GB."
   type        = number
-  default     = 8
+  default     = 16
 }
 
 variable "vm_core_fraction" {
@@ -87,7 +87,13 @@ variable "vm_core_fraction" {
 variable "boot_disk_size_gb" {
   description = "Boot disk size in GB."
   type        = number
-  default     = 50
+  default     = 80
+}
+
+variable "enable_oslogin" {
+  description = "Enable Yandex Cloud OS Login for keyless IAM-based SSH access."
+  type        = bool
+  default     = true
 }
 
 variable "boot_disk_type" {

@@ -13,6 +13,21 @@ on:
         required: false
         default: grafana.macsia.fun
         type: string
+      sonarqube_domain:
+        description: Публичный DNS для SonarQube
+        required: false
+        default: sonar.macsia.fun
+        type: string
+      argocd_domain:
+        description: Публичный DNS для Argo CD UI
+        required: false
+        default: argocd.macsia.fun
+        type: string
+      k8s_dashboard_domain:
+        description: Публичный DNS для Kubernetes Dashboard
+        required: false
+        default: dashboard.macsia.fun
+        type: string
       acme_email:
         description: Email для HTTPS-сертификатов
         required: false
@@ -21,7 +36,7 @@ on:
       vm_name:
         description: Имя VM в Yandex Cloud
         required: false
-        default: debtsapp-k3s
+        default: debtsapp-lab4
         type: string
       zone:
         description: Зона Yandex Cloud
@@ -31,7 +46,7 @@ on:
       image_tag:
         description: Тег Docker-образов для deploy
         required: false
-        default: lab3
+        default: lab4
         type: string
 
 jobs:
@@ -59,25 +74,31 @@ jobs:
       - name: Render Terraform vars and Ansible secrets
         uses: ./.github/actions/prepare-deploy
         with:
-          cloud_id: ${{ secrets.YC_CLOUD_ID }}
-          folder_id: ${{ secrets.YC_FOLDER_ID }}
-          ssh_public_key: ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
-          admin_password_hash: ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
-          vm_name: ${{ inputs.vm_name }}
-          zone: ${{ inputs.zone }}
-          app_domain: ${{ inputs.app_domain }}
-          grafana_domain: ${{ inputs.grafana_domain }}
-          acme_email: ${{ inputs.acme_email }}
-          image_tag: ${{ inputs.image_tag }}
-          repository_owner: ${{ github.repository_owner }}
-          ghcr_username: ${{ secrets.GHCR_PULL_USERNAME }}
-          ghcr_token: ${{ secrets.GHCR_PULL_TOKEN }}
-          postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
-          neo4j_password: ${{ secrets.NEO4J_PASSWORD }}
-          jwt_secret: ${{ secrets.JWT_SECRET }}
-          grafana_admin_user: grafana
+          cloud_id:             ${{ secrets.YC_CLOUD_ID }}
+          folder_id:            ${{ secrets.YC_FOLDER_ID }}
+          ssh_public_key:       ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
+          admin_password_hash:  ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
+          vm_name:              ${{ inputs.vm_name }}
+          zone:                 ${{ inputs.zone }}
+          app_domain:           ${{ inputs.app_domain }}
+          grafana_domain:       ${{ inputs.grafana_domain }}
+          sonarqube_domain:     ${{ inputs.sonarqube_domain }}
+          sonarqube_db_password: ${{ secrets.SONARQUBE_DB_PASSWORD }}
+          argocd_domain:        ${{ inputs.argocd_domain }}
+          k8s_dashboard_domain: ${{ inputs.k8s_dashboard_domain }}
+          acme_email:           ${{ inputs.acme_email }}
+          image_tag:            ${{ inputs.image_tag }}
+          repository_owner:     ${{ github.repository_owner }}
+          ghcr_username:        ${{ secrets.GHCR_PULL_USERNAME }}
+          ghcr_token:           ${{ secrets.GHCR_PULL_TOKEN }}
+          postgres_password:    ${{ secrets.POSTGRES_PASSWORD }}
+          neo4j_password:       ${{ secrets.NEO4J_PASSWORD }}
+          jwt_secret:           ${{ secrets.JWT_SECRET }}
+          grafana_admin_user:   grafana
           grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-          bot_token: ${{ secrets.BOT_TOKEN }}
+          bot_token:            ${{ secrets.BOT_TOKEN }}
+          github_repo_url:      https://github.com/${{ github.repository }}
+          github_repo_token:    ${{ secrets.GHCR_PULL_TOKEN }}
 
       - name: Provision VM and prepare inventory
         uses: ./.github/actions/provision-vm
@@ -92,3 +113,16 @@ jobs:
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
           curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null
           curl --fail --silent --show-error --user "grafana:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" --max-time 45 "https://${{ inputs.grafana_domain }}/api/user" >/dev/null
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.argocd_domain }}/" >/dev/null
+
+      - name: Notify Telegram on deploy result
+        if: always()
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ job.status }}
+          job_name:  "Deploy ${{ inputs.vm_name }}"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -3,6 +3,13 @@ app_namespace: debtsapp
 monitoring_namespace: monitoring
 app_domain: debtsapp.macsia.fun
 grafana_domain: grafana.macsia.fun
+argocd_domain: argocd.macsia.fun
+k8s_dashboard_domain: dashboard.macsia.fun
+sonarqube_domain: sonar.macsia.fun
+sonarqube_db_user: sonarqube
+sonarqube_db_name: sonarqube
+sonarqube_storage_size: 10Gi
+sonarqube_db_storage_size: 5Gi
 acme_email: macsia.production@gmail.com
 
 k3s_kubeconfig: /etc/rancher/k3s/k3s.yaml
@@ -10,8 +17,8 @@ k3s_install_channel: stable
 manifest_dir: /srv/debtsapp/manifests
 storage_class_name: local-path
 
-backend_image: ghcr.io/macsiaproduction/debtsapp-backend:lab3
-frontend_image: ghcr.io/macsiaproduction/debtsapp-frontend:lab3
+backend_image: ghcr.io/macsiaproduction/debtsapp-backend:lab4
+frontend_image: ghcr.io/macsiaproduction/debtsapp-frontend:lab4
 image_pull_secret_name: ghcr-pull
 
 backend_replicas: 1
@@ -28,7 +35,9 @@ postgres_storage_size: 10Gi
 neo4j_user: neo4j
 neo4j_storage_size: 10Gi
 
-telegram_bot_enabled: false
+telegram_bot_enabled: true
+github_repo_url: ""
+github_repo_token: ""
 bot_name: DebtsAppBot
 
 session_token_lifetime: 1m

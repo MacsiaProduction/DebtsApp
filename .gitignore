@@ -90,3 +90,5 @@ backend/.env.local/
 backend/.env.development.local/
 backend/.env.test.local/
 backend/.env.production.local/
+
+secrets.properties

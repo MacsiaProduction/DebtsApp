@@ -7,8 +7,10 @@
     - vars/deploy-secrets.yml
   vars:
     helm_repos:
-      - { name: jetstack,             url: "https://charts.jetstack.io" }
-      - { name: prometheus-community, url: "https://prometheus-community.github.io/helm-charts" }
+      - { name: jetstack,              url: "https://charts.jetstack.io" }
+      - { name: prometheus-community,  url: "https://prometheus-community.github.io/helm-charts" }
+      - { name: argo,                  url: "https://argoproj.github.io/argo-helm" }
+      - { name: kubernetes-dashboard,  url: "https://kubernetes.github.io/dashboard/" }
     rollout_waits:
       - { kind: deployment,  name: cert-manager,            ns: cert-manager }
       - { kind: deployment,  name: cert-manager-webhook,    ns: cert-manager }
@@ -20,13 +22,19 @@
       - { kind: deployment,  name: debts-frontend,          ns: "{{ app_namespace }}" }
       - { kind: deployment,  name: "{{ monitoring_release_name }}-kube-prometheus-operator", ns: "{{ monitoring_namespace }}" }
       - { kind: deployment,  name: "{{ monitoring_release_name }}-grafana",                  ns: "{{ monitoring_namespace }}" }
+      - { kind: statefulset, name: sonarqube-db,                                             ns: sonarqube }
+      - { kind: statefulset, name: sonarqube,                                                ns: sonarqube }
+      - { kind: deployment,  name: argocd-server,           ns: argocd }
+      - { kind: deployment,  name: kubernetes-dashboard-web, ns: kubernetes-dashboard }
     service_endpoint_waits:
       - { name: debts-bot,      ns: "{{ app_namespace }}" }
       - { name: debts-frontend, ns: "{{ app_namespace }}" }
+      - { name: argocd-server,  ns: argocd }
     route_smoke_checks:
       - { name: frontend,       host: "{{ app_domain }}", url: "https://{{ app_domain }}/" }
       - { name: backend_health, host: "{{ app_domain }}", url: "https://{{ app_domain }}/api/actuator/health" }
       - { name: grafana,        host: "{{ grafana_domain }}", url: "https://{{ grafana_domain }}/" }
+      - { name: argocd,         host: "{{ argocd_domain }}", url: "https://{{ argocd_domain }}/" }
   environment:
     KUBECONFIG: "{{ k3s_kubeconfig }}"
 
@@ -111,6 +119,30 @@
       retries: 3
       delay: 20
       until: monitoring_install.rc == 0
+
+    - name: Установить Argo CD
+      ansible.builtin.command: >-
+        helm upgrade --install argocd argo/argo-cd
+        --namespace argocd --create-namespace
+        --set server.insecure=true
+        --set configs.params."server\.insecure"=true
+      register: argocd_install
+      retries: 3
+      delay: 15
+      until: argocd_install.rc == 0
+
+    - name: Дождаться готовности Argo CD server
+      ansible.builtin.command: kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+      changed_when: false
+
+    - name: Установить Kubernetes Dashboard
+      ansible.builtin.command: >-
+        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
+        --namespace kubernetes-dashboard --create-namespace
+      register: dashboard_install
+      retries: 3
+      delay: 15
+      until: dashboard_install.rc == 0
 
     # kubectl apply -f dir обрабатывает все манифесты директории разом.
     - name: Применить манифесты приложения

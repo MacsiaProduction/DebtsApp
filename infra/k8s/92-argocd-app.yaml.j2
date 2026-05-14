@@ -1,0 +1,38 @@
+{% if (github_repo_url | default('')) | length > 0 %}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: debtsapp-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: {{ github_repo_url | quote }}
+  username: git
+  password: {{ (github_repo_token | default('')) | quote }}
+  type: git
+---
+{% endif %}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debtsapp
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ github_repo_url | default('https://github.com/MacsiaProduction/DebtsApp') | quote }}
+    targetRevision: lab4
+    path: infra/helm/debtsapp-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ app_namespace }}
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

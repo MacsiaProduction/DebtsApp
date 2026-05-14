@@ -44,11 +44,12 @@ resource "yandex_compute_instance" "debtsapp" {
   }
 
   metadata = {
-    user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
+    user-data      = templatefile("${path.module}/cloud-init.yaml.tftpl", {
       vm_name             = var.vm_name
       ssh_user            = var.ssh_user
       ssh_public_key      = trimspace(var.ssh_public_key)
       admin_password_hash = var.admin_password_hash
     })
+    enable-oslogin = var.enable_oslogin ? "true" : "false"
   }
 }

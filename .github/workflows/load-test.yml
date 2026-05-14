@@ -11,7 +11,7 @@ on:
       vm_name:
         description: Yandex Cloud VM name
         required: false
-        default: debtsapp-k3s
+        default: debtsapp-lab4
         type: string
       k6_stages:
         description: k6 stages as duration:target pairs

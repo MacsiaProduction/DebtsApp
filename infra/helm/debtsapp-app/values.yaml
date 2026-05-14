@@ -1,0 +1,33 @@
+namespace: debtsapp
+
+imagePullSecretName: ghcr-pull
+
+backend:
+  name: debts-bot
+  image:
+    repository: ghcr.io/macsiaproduction/debtsapp-backend
+    tag: lab4
+    pullPolicy: Always
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  name: debts-frontend
+  image:
+    repository: ghcr.io/macsiaproduction/debtsapp-frontend
+    tag: lab4
+    pullPolicy: Always
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
