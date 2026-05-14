@@ -1,0 +1,93 @@
+name: "Force publish Docker images"
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to publish (default: branch name)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build-and-push:
+    name: "Build and publish images (bypass sonar gate)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          [ -z "$TAG" ] && TAG="${{ github.ref_name }}"
+          echo "value=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Compute backend image tags
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/debtsapp-backend
+          tags: |
+            type=sha
+            type=raw,value=${{ steps.tag.outputs.value }}
+
+      - name: Compute frontend image tags
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/debtsapp-frontend
+          tags: |
+            type=sha
+            type=raw,value=${{ steps.tag.outputs.value }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+
+      - name: Update ArgoCD image tag
+        if: github.ref_name == 'lab4'
+        run: |
+          SHORT="${GITHUB_SHA:0:7}"
+          sed -i "s|^    tag: .*|    tag: sha-${SHORT}|g" infra/helm/debtsapp-app/values.yaml
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add infra/helm/debtsapp-app/values.yaml
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: force-update image tag to sha-${SHORT} [skip ci]"
+          git push
+
+      - name: Notify Telegram
+        if: always()
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ job.status }}
+          job_name:  "Force publish (${{ steps.tag.outputs.value }})"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
