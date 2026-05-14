@@ -5,6 +5,12 @@ on:
     branches: [ master, main, lab3, lab4 ]
   pull_request:
     branches: [ master, main, lab3, lab4 ]
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: 'Publish Docker images even if SonarQube gate fails'
+        type: boolean
+        default: false
 
 jobs:
   backend-test:
@@ -204,7 +210,7 @@ jobs:
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   sonarqube-scan:
-    name: "SonarCloud: анализ качества кода"
+    name: "SonarQube: анализ качества кода"
     runs-on: ubuntu-latest
     needs: [ backend-integration, frontend-test ]
     steps:
@@ -237,10 +243,10 @@ jobs:
         run: ./gradlew classes --no-daemon
 
       - name: Run SonarQube analysis
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONARQUBE_URL }}
+          SONAR_HOST_URL: ${{ vars.SONARQUBE_URL }}
 
       - name: Notify Telegram
         if: always()
@@ -256,7 +262,16 @@ jobs:
 
   publish-images:
     name: "Docker: публикация образов в GHCR"
-    if: ${{ github.event_name == 'push' && contains(fromJson('["refs/heads/master","refs/heads/main","refs/heads/lab3","refs/heads/lab4"]'), github.ref) }}
+    if: >-
+      always() &&
+      needs.backend-build.result == 'success' &&
+      needs.backend-integration.result == 'success' &&
+      needs.frontend-build.result == 'success' &&
+      contains(fromJson('["refs/heads/master","refs/heads/main","refs/heads/lab3","refs/heads/lab4"]'), github.ref) &&
+      (
+        (github.event_name == 'push' && needs.sonarqube-scan.result == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.force_publish == true)
+      )
     runs-on: ubuntu-latest
     needs:
       - backend-build
@@ -330,7 +345,7 @@ jobs:
   update-argocd-image:
     name: "GitOps: обновить image tag для Argo CD"
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref_name == 'lab4'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'lab4'
     needs: [ publish-images ]
     permissions:
       contents: write
