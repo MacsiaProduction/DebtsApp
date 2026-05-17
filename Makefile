@@ -1,28 +1,27 @@
-.PHONY: help build-backend test-backend run-backend clean-backend docker-up docker-down
+TERRAFORM_DIR := infra/terraform/yandex
+ANSIBLE_DIR := infra/ansible
+K3S_INVENTORY ?= $(ANSIBLE_DIR)/inventory.ini
+
+.PHONY: help infra-init infra-plan infra-apply render-inventory deploy
 
 help:
-	@echo "Available commands:"
-	@echo "  make build-backend    - Build the backend application"
-	@echo "  make test-backend     - Run backend tests"
-	@echo "  make run-backend      - Run the backend application"
-	@echo "  make clean-backend    - Clean backend build artifacts"
-	@echo "  make docker-up        - Start all services with Docker Compose"
-	@echo "  make docker-down      - Stop all services"
+	@echo "infra-init        Initialize Terraform"
+	@echo "infra-apply       Provision or update the VM"
+	@echo "render-inventory  Render Ansible inventory from Terraform outputs"
+	@echo "deploy            Run full site playbook (bootstrap + deploy)"
 
-build-backend:
-	cd backend && ./gradlew build
+infra-init:
+	TF_CLI_CONFIG_FILE=$(CURDIR)/infra/terraform/terraformrc terraform -chdir=$(TERRAFORM_DIR) init
 
-test-backend:
-	cd backend && ./gradlew test
+infra-plan: infra-init
+	TF_CLI_CONFIG_FILE=$(CURDIR)/infra/terraform/terraformrc terraform -chdir=$(TERRAFORM_DIR) plan
 
-run-backend:
-	cd backend && ./gradlew bootRun
+infra-apply: infra-init
+	TF_CLI_CONFIG_FILE=$(CURDIR)/infra/terraform/terraformrc terraform -chdir=$(TERRAFORM_DIR) apply
 
-clean-backend:
-	cd backend && ./gradlew clean
+render-inventory:
+	TF_DIR=$(TERRAFORM_DIR) VM_NAME=$${VM_NAME:-debtsapp-k3s} python scripts/resolve_ssh_host.py \
+	  | ./scripts/render-ansible-inventory.sh - > $(K3S_INVENTORY)
 
-docker-up:
-	docker-compose up -d
-
-docker-down:
-	docker-compose down
+deploy:
+	ANSIBLE_CONFIG=$(ANSIBLE_DIR)/ansible.cfg ansible-playbook $(ANSIBLE_DIR)/site.yml -i $(K3S_INVENTORY)

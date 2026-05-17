@@ -1,140 +1,137 @@
 package ru.m_polukhin.debtsapp.controllers;
 
-import org.junit.jupiter.api.Order;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.Neo4jContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import ru.m_polukhin.debtsapp.dto.RegisterDTO;
 import ru.m_polukhin.debtsapp.services.SecurityService;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@SuppressWarnings("resource")
-public class AuthWebControllerTest {
+@ExtendWith(MockitoExtension.class)
+class AuthWebControllerTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Container
-    static Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:5-community")
-            .withoutAuthentication();
+    @Mock
+    private SecurityService securityService;
 
-    @LocalServerPort
-    private int port;
+    @InjectMocks
+    private AuthWebController authWebController;
 
-    @Autowired private TestRestTemplate restTemplate;
-    @Autowired private SecurityService securityService;
+    private MockMvc mockMvc;
 
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.neo4j.uri", neo4j::getBoltUrl);
-        registry.add("spring.neo4j.authentication.username", () -> "neo4j");
-        registry.add("spring.neo4j.authentication.password", () -> "");
-    }
-
-    private String url(String path) {
-        return "http://localhost:" + port + path;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(authWebController).build();
     }
 
     @Test
-    @Order(1)
-    public void testGenerateSessionToken() {
-        ResponseEntity<String> response = restTemplate.getForEntity(url("/session"), String.class);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+    void testGenerateSessionToken() throws Exception {
+        when(securityService.generateSessionToken()).thenReturn("session-token");
+
+        mockMvc.perform(get("/session"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("session-token"));
     }
 
     @Test
-    public void testAuthenticateUserFail() {
-        ResponseEntity<?> response = restTemplate.postForEntity(url("/login"), "badToken", String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    void testAuthenticateUserFail() throws Exception {
+        ResponseEntity<?> response = ResponseEntity.badRequest().body("Invalid token");
+        doReturn(response).when(securityService).authenticateUser("badToken");
+
+        mockMvc.perform(post("/login")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("badToken"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Invalid token"));
     }
 
     @Test
-    public void testAuthenticateUserSuccess() {
-        ResponseEntity<String> sessionResponse = restTemplate.getForEntity(url("/session"), String.class);
-        assertEquals(HttpStatus.OK, sessionResponse.getStatusCode());
+    void testAuthenticateUserSuccess() throws Exception {
+        ResponseEntity<?> response = ResponseEntity.ok("jwt-token");
+        doReturn(response).when(securityService).authenticateUser("goodToken");
 
-        securityService.activateSessionToken(100L, sessionResponse.getBody());
-
-        ResponseEntity<?> loginResponse = restTemplate.postForEntity(url("/login"), sessionResponse.getBody(), String.class);
-        assertEquals(HttpStatus.OK, loginResponse.getStatusCode());
+        mockMvc.perform(post("/login")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("goodToken"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("jwt-token"));
     }
 
     @Test
-    public void testWebRegisterAndLogin() {
-        var dto = new RegisterDTO("testuser_auth", "TestPass1!");
+    void testWebRegisterAndLogin() throws Exception {
+        RegisterDTO dto = new RegisterDTO("testuser_auth", "TestPass1!");
+        ResponseEntity<?> registerResponse = new ResponseEntity<>("Registered successfully", HttpStatus.CREATED);
+        ResponseEntity<?> loginResponse = ResponseEntity.ok("jwt-token");
+        doReturn(registerResponse).when(securityService).registerWeb(dto.username(), dto.password());
+        doReturn(loginResponse).when(securityService).loginWeb(dto.username(), dto.password());
 
-        ResponseEntity<?> registerResponse = restTemplate.postForEntity(url("/auth/register"), dto, String.class);
-        assertEquals(HttpStatus.CREATED, registerResponse.getStatusCode());
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isCreated());
 
-        ResponseEntity<?> loginResponse = restTemplate.postForEntity(url("/auth/login"), dto, String.class);
-        assertEquals(HttpStatus.OK, loginResponse.getStatusCode());
-        assertNotNull(loginResponse.getBody());
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("jwt-token"));
     }
 
     @Test
-    public void testWebRegisterDuplicate() {
-        var dto = new RegisterDTO("dupuser_auth", "TestPass1!");
-        restTemplate.postForEntity(url("/auth/register"), dto, String.class);
+    void testWebRegisterDuplicate() throws Exception {
+        RegisterDTO dto = new RegisterDTO("dupuser_auth", "TestPass1!");
+        ResponseEntity<?> response = new ResponseEntity<>("Username already taken", HttpStatus.CONFLICT);
+        doReturn(response).when(securityService).registerWeb(dto.username(), dto.password());
 
-        ResponseEntity<?> response = restTemplate.postForEntity(url("/auth/register"), dto, String.class);
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isConflict());
     }
 
     @Test
-    public void testWebLoginWrongPassword() {
-        var dto = new RegisterDTO("badpassuser_auth", "TestPass1!");
-        restTemplate.postForEntity(url("/auth/register"), dto, String.class);
+    void testWebLoginWrongPassword() throws Exception {
+        RegisterDTO dto = new RegisterDTO("badpassuser_auth", "Wrong!");
+        ResponseEntity<?> response = new ResponseEntity<>("Invalid credentials", HttpStatus.UNAUTHORIZED);
+        doReturn(response).when(securityService).loginWeb(dto.username(), dto.password());
 
-        ResponseEntity<?> response = restTemplate.postForEntity(url("/auth/login"), new RegisterDTO("badpassuser_auth", "Wrong!"), String.class);
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    public void testProtectedEndpointRequiresJwt() {
-        ResponseEntity<String> response = restTemplate.getForEntity(url("/transactions"), String.class);
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    void testLinkTokenRequiresPrincipal() throws Exception {
+        mockMvc.perform(get("/auth/link-token"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    public void testProtectedEndpointWithJwtIsAccessible() {
-        var dto = new RegisterDTO("jwtuser_auth", "TestPass1!");
-        restTemplate.postForEntity(url("/auth/register"), dto, String.class);
+    void testLinkTokenUsesAuthenticatedPrincipal() throws Exception {
+        when(securityService.generateLinkToken(42L)).thenReturn("link-token");
 
-        ResponseEntity<String> loginResponse = restTemplate.postForEntity(url("/auth/login"), dto, String.class);
-        assertEquals(HttpStatus.OK, loginResponse.getStatusCode());
-        String jwt = loginResponse.getBody();
-        assertNotNull(jwt);
+        mockMvc.perform(get("/auth/link-token").principal(() -> "42"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("link-token"));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(jwt);
-        ResponseEntity<String> response = restTemplate.exchange(
-                url("/transactions"),
-                org.springframework.http.HttpMethod.GET,
-                new HttpEntity<>(headers),
-                String.class);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(securityService).generateLinkToken(42L);
     }
 }

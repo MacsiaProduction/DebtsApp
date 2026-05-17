@@ -1,0 +1,102 @@
+name: Подготовка deploy
+description: Создает файлы переменных Terraform и Ansible из inputs workflow.
+
+inputs:
+  cloud_id:
+    required: true
+  folder_id:
+    required: true
+  ssh_public_key:
+    required: true
+  admin_password_hash:
+    required: true
+  vm_name:
+    required: true
+  zone:
+    required: true
+  app_domain:
+    required: true
+  grafana_domain:
+    required: true
+  acme_email:
+    required: true
+  image_tag:
+    required: false
+    default: lab3
+  repository_owner:
+    required: true
+  ghcr_username:
+    required: false
+    default: ""
+  ghcr_token:
+    required: false
+    default: ""
+  postgres_password:
+    required: true
+  neo4j_password:
+    required: true
+  jwt_secret:
+    required: true
+  grafana_admin_user:
+    required: false
+    default: grafana
+  grafana_admin_password:
+    required: true
+  bot_token:
+    required: false
+    default: ""
+  sonarqube_domain:
+    required: false
+    default: sonar.macsia.fun
+  sonarqube_db_password:
+    required: false
+    default: ""
+  argocd_domain:
+    required: false
+    default: argocd.macsia.fun
+  k8s_dashboard_domain:
+    required: false
+    default: dashboard.macsia.fun
+  github_repo_url:
+    required: false
+    default: ""
+  github_repo_token:
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Записать переменные Terraform и секреты Ansible
+      shell: bash
+      env:
+        CLOUD_ID: ${{ inputs.cloud_id }}
+        FOLDER_ID: ${{ inputs.folder_id }}
+        SSH_PUBLIC_KEY: ${{ inputs.ssh_public_key }}
+        ADMIN_PASSWORD_HASH: ${{ inputs.admin_password_hash }}
+        VM_NAME: ${{ inputs.vm_name }}
+        ZONE: ${{ inputs.zone }}
+        APP_DOMAIN: ${{ inputs.app_domain }}
+        GRAFANA_DOMAIN: ${{ inputs.grafana_domain }}
+        ACME_EMAIL: ${{ inputs.acme_email }}
+        REPOSITORY_OWNER: ${{ inputs.repository_owner }}
+        IMAGE_TAG: ${{ inputs.image_tag }}
+        GHCR_PULL_USERNAME: ${{ inputs.ghcr_username }}
+        GHCR_PULL_TOKEN: ${{ inputs.ghcr_token }}
+        POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
+        NEO4J_PASSWORD: ${{ inputs.neo4j_password }}
+        JWT_SECRET: ${{ inputs.jwt_secret }}
+        GRAFANA_ADMIN_USER: ${{ inputs.grafana_admin_user }}
+        GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
+        BOT_TOKEN: ${{ inputs.bot_token }}
+        ARGOCD_DOMAIN: ${{ inputs.argocd_domain }}
+        K8S_DASHBOARD_DOMAIN: ${{ inputs.k8s_dashboard_domain }}
+        GITHUB_REPO_URL: ${{ inputs.github_repo_url }}
+        GITHUB_REPO_TOKEN: ${{ inputs.github_repo_token }}
+        SONARQUBE_DOMAIN: ${{ inputs.sonarqube_domain }}
+        SONARQUBE_DB_PASSWORD: ${{ inputs.sonarqube_db_password }}
+      run: |
+        owner_lc="${REPOSITORY_OWNER,,}"
+        export BACKEND_IMAGE="ghcr.io/${owner_lc}/debtsapp-backend:${IMAGE_TAG}"
+        export FRONTEND_IMAGE="ghcr.io/${owner_lc}/debtsapp-frontend:${IMAGE_TAG}"
+        python scripts/write_deploy_inputs.py

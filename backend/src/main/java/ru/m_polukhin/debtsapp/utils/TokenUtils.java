@@ -1,12 +1,14 @@
 package ru.m_polukhin.debtsapp.utils;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.m_polukhin.debtsapp.models.ActiveSessionToken;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -24,17 +26,28 @@ public class TokenUtils {
 
     private final SecretKey secretKey;
 
-    public TokenUtils() {
-        this.secretKey = generateKey();
+    public TokenUtils(
+            @Value("${jwt.secret:}") String jwtSecret,
+            @Value("${app.jwt.allow-generated-secret:true}") boolean allowGeneratedSecret) {
+        this.secretKey = generateKey(jwtSecret, allowGeneratedSecret);
     }
-    private SecretKey generateKey() {
-        try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256");
-            keyGenerator.init(256); // 256 бит
-            return keyGenerator.generateKey();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("No such algorithm", e);
+
+    private SecretKey generateKey(String jwtSecret, boolean allowGeneratedSecret) {
+        if (jwtSecret != null && !jwtSecret.isBlank()) {
+            try {
+                byte[] secretBytes = MessageDigest.getInstance("SHA-256")
+                        .digest(jwtSecret.getBytes(StandardCharsets.UTF_8));
+                return Keys.hmacShaKeyFor(secretBytes);
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException("No such algorithm", e);
+            }
         }
+
+        if (!allowGeneratedSecret) {
+            throw new IllegalStateException("JWT_SECRET must be configured when app.jwt.allow-generated-secret=false");
+        }
+
+        return Jwts.SIG.HS256.key().build();
     }
 
     public String generateJwtToken(String subject) {

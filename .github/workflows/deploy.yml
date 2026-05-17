@@ -1,46 +1,128 @@
-name: Deploy
+name: "Deploy: VM и приложение"
 
 on:
   workflow_dispatch:
+    inputs:
+      app_domain:
+        description: Публичный DNS для DebtsApp
+        required: false
+        default: debtsapp.macsia.fun
+        type: string
+      grafana_domain:
+        description: Публичный DNS для Grafana
+        required: false
+        default: grafana.macsia.fun
+        type: string
+      sonarqube_domain:
+        description: Публичный DNS для SonarQube
+        required: false
+        default: sonar.macsia.fun
+        type: string
+      argocd_domain:
+        description: Публичный DNS для Argo CD UI
+        required: false
+        default: argocd.macsia.fun
+        type: string
+      k8s_dashboard_domain:
+        description: Публичный DNS для Kubernetes Dashboard
+        required: false
+        default: dashboard.macsia.fun
+        type: string
+      acme_email:
+        description: Email для HTTPS-сертификатов
+        required: false
+        default: macsia.production@gmail.com
+        type: string
+      vm_name:
+        description: Имя VM в Yandex Cloud
+        required: false
+        default: debtsapp-lab4
+        type: string
+      zone:
+        description: Зона Yandex Cloud
+        required: false
+        default: ru-central1-a
+        type: string
+      image_tag:
+        description: Тег Docker-образов для deploy
+        required: false
+        default: lab4
+        type: string
 
 jobs:
   deploy:
+    name: Развернуть VM и k3s-приложение
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_CLI_CONFIG_FILE: ${{ github.workspace }}/infra/terraform/terraformrc
+      ANSIBLE_CONFIG: infra/ansible/ansible.cfg
+      YC_TOKEN: ${{ secrets.YC_TOKEN }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      VM_NAME: ${{ inputs.vm_name }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up deploy tooling (Terraform, Python, Ansible, SSH)
+        uses: ./.github/actions/setup-deploy-tooling
         with:
-          python-version: '3.12'
+          ssh_private_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible
+      - name: Render Terraform vars and Ansible secrets
+        uses: ./.github/actions/prepare-deploy
+        with:
+          cloud_id:             ${{ secrets.YC_CLOUD_ID }}
+          folder_id:            ${{ secrets.YC_FOLDER_ID }}
+          ssh_public_key:       ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
+          admin_password_hash:  ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
+          vm_name:              ${{ inputs.vm_name }}
+          zone:                 ${{ inputs.zone }}
+          app_domain:           ${{ inputs.app_domain }}
+          grafana_domain:       ${{ inputs.grafana_domain }}
+          sonarqube_domain:     ${{ inputs.sonarqube_domain }}
+          sonarqube_db_password: ${{ secrets.SONARQUBE_DB_PASSWORD }}
+          argocd_domain:        ${{ inputs.argocd_domain }}
+          k8s_dashboard_domain: ${{ inputs.k8s_dashboard_domain }}
+          acme_email:           ${{ inputs.acme_email }}
+          image_tag:            ${{ inputs.image_tag }}
+          repository_owner:     ${{ github.repository_owner }}
+          ghcr_username:        ${{ secrets.GHCR_PULL_USERNAME }}
+          ghcr_token:           ${{ secrets.GHCR_PULL_TOKEN }}
+          postgres_password:    ${{ secrets.POSTGRES_PASSWORD }}
+          neo4j_password:       ${{ secrets.NEO4J_PASSWORD }}
+          jwt_secret:           ${{ secrets.JWT_SECRET }}
+          grafana_admin_user:   grafana
+          grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          bot_token:            ${{ secrets.BOT_TOKEN }}
+          github_repo_url:      https://github.com/${{ github.repository }}
+          github_repo_token:    ${{ secrets.GHCR_PULL_TOKEN }}
 
-      - name: Prepare SSH access
+      - name: Provision VM and prepare inventory
+        uses: ./.github/actions/provision-vm
+
+      - name: Run Ansible deploy in k3s
+        run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
+
+      - name: Verify public HTTPS endpoints
         run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.ROBOT_SSH_KEY }}" > ~/.ssh/robot_ed25519
-          chmod 600 ~/.ssh/robot_ed25519
-          printf '%s\n' "${{ secrets.ROBOT_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/" >/dev/null
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null
+          curl --fail --silent --show-error --user "grafana:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" --max-time 45 "https://${{ inputs.grafana_domain }}/api/user" >/dev/null
+          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.argocd_domain }}/" >/dev/null
 
-      - name: Write inventory
-        run: |
-          cat > infra/ansible/inventory.ini <<EOF
-          [debtsapp]
-          ${{ secrets.ROBOT_SSH_HOST }} ansible_user=${{ secrets.ROBOT_SSH_USER }} ansible_port=${{ secrets.ROBOT_SSH_PORT }} ansible_ssh_private_key_file=$HOME/.ssh/robot_ed25519
-          EOF
-
-      - name: Deploy application
-        env:
-          GHCR_USERNAME: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ansible-playbook infra/ansible/deploy.yml \
-            -i infra/ansible/inventory.ini \
-            -e ghcr_username="$GHCR_USERNAME" \
-            -e ghcr_token="$GHCR_TOKEN"
+      - name: Notify Telegram on deploy result
+        if: always()
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ job.status }}
+          job_name:  "Deploy ${{ inputs.vm_name }}"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

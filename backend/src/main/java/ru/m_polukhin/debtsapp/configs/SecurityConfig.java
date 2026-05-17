@@ -1,8 +1,8 @@
 package ru.m_polukhin.debtsapp.configs;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -18,14 +18,21 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import ru.m_polukhin.debtsapp.services.UserDetailsServiceImpl;
 
-import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsServiceImpl;
+    private final List<String> allowedOriginPatterns;
+
+    public SecurityConfig(
+            UserDetailsServiceImpl userDetailsServiceImpl,
+            @Value("${app.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") List<String> allowedOriginPatterns) {
+        this.userDetailsServiceImpl = userDetailsServiceImpl;
+        this.allowedOriginPatterns = allowedOriginPatterns;
+    }
 
     @Bean
     public AuthenticationManager authManager(HttpSecurity http) throws Exception {
@@ -54,7 +61,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests((authorizeHttpRequests) ->
                         authorizeHttpRequests
-                                .requestMatchers("/session", "/login", "/auth/register", "/auth/login", "/error").permitAll()
+                                .requestMatchers(
+                                        "/session",
+                                        "/login",
+                                        "/auth/register",
+                                        "/auth/login",
+                                        "/error",
+                                        "/actuator/health",
+                                        "/actuator/health/**",
+                                        "/actuator/prometheus"
+                                ).permitAll()
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement((sessionManagement) ->
@@ -75,17 +91,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://node.macsia.fun:*",
-                "https://node.macsia.fun:*",
-                "http://84.201.153.123:*",
-                "http://89.169.171.86:*",
-                "https://89.169.171.86:*"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

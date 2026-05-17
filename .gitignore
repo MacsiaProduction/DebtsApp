@@ -2,6 +2,7 @@
 HELP.md
 backend/target/
 backend/build/
+backend/out/
 backend/.gradle/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -54,14 +55,24 @@ e2e/test-results/
 .env
 .env.local
 .env.*.local
+local-passwords.env
 frontend/.env
 frontend/.env.local
 infra/ansible/inventory.ini
+infra/ansible/inventory.old.ini
+infra/ansible/vars/deploy-secrets.yml
+infra/terraform/yandex/.terraform/
+infra/terraform/yandex/*.tfstate
+infra/terraform/yandex/*.tfstate.*
+infra/terraform/yandex/terraform.tfvars
+infra/terraform/yandex/terraform.auto.tfvars
+infra/terraform/yandex/terraform.auto.tfvars.json
 
 # IDE
 .vscode/
 .DS_Store
 /build/
+/out/
 /backend/.gradle/
 /.idea/
 /.gradle/
@@ -79,3 +90,5 @@ backend/.env.local/
 backend/.env.development.local/
 backend/.env.test.local/
 backend/.env.production.local/
+
+secrets.properties

@@ -45,6 +45,7 @@ services:
 
   debts_bot:
     container_name: debts_bot
+    restart: always
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -57,12 +58,19 @@ services:
       - SPRING_NEO4J_URI=bolt://debts-neo4j:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
       - SPRING_NEO4J_AUTHENTICATION_PASSWORD=debtsbot123
+      - JWT_SECRET=debtsapp-local-dev-jwt-secret-change-me
       - TELEGRAM_BOT_ENABLED=false
     depends_on:
       debts_bot_db:
         condition: service_healthy
       debts_neo4j:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     networks:
       default:
         aliases:
@@ -70,6 +78,7 @@ services:
 
   debts_frontend:
     container_name: debts_frontend
+    restart: always
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -78,7 +87,14 @@ services:
     ports:
       - '3000:80'
     depends_on:
-      - debts_bot
+      debts_bot:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
 volumes:
   debts_data:

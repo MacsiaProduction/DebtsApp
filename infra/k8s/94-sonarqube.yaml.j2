@@ -1,0 +1,250 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sonarqube
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonarqube-env
+  namespace: sonarqube
+type: Opaque
+stringData:
+  SONARQUBE_DB_PASSWORD: {{ sonarqube_db_password | quote }}
+---
+# ── PostgreSQL for SonarQube ────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube-db
+  namespace: sonarqube
+spec:
+  selector:
+    app: sonarqube-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube-db-headless
+  namespace: sonarqube
+spec:
+  clusterIP: None
+  selector:
+    app: sonarqube-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sonarqube-db
+  namespace: sonarqube
+spec:
+  serviceName: sonarqube-db-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube-db
+  template:
+    metadata:
+      labels:
+        app: sonarqube-db
+    spec:
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 999:999 /var/lib/postgresql/data"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ sonarqube_db_user | quote }}
+            - name: POSTGRES_DB
+              value: {{ sonarqube_db_name | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonarqube-env
+                  key: SONARQUBE_DB_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U {{ sonarqube_db_user }} -d {{ sonarqube_db_name }}"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U {{ sonarqube_db_user }} -d {{ sonarqube_db_name }}"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ storage_class_name | quote }}
+        resources:
+          requests:
+            storage: {{ sonarqube_db_storage_size }}
+---
+# ── SonarQube CE ─────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  selector:
+    app: sonarqube
+  ports:
+    - name: http
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  serviceName: sonarqube
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+    spec:
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 1000:1000 /opt/sonarqube/data /opt/sonarqube/temp /opt/sonarqube/logs /opt/sonarqube/extensions"]
+          volumeMounts:
+            - name: data
+              mountPath: /opt/sonarqube/data
+            - name: temp
+              mountPath: /opt/sonarqube/temp
+            - name: logs
+              mountPath: /opt/sonarqube/logs
+            - name: extensions
+              mountPath: /opt/sonarqube/extensions
+      containers:
+        - name: sonarqube
+          image: sonarqube:10.6-community
+          ports:
+            - containerPort: 9000
+              name: http
+          env:
+            - name: SONAR_JDBC_URL
+              value: "jdbc:postgresql://sonarqube-db:5432/{{ sonarqube_db_name }}"
+            - name: SONAR_JDBC_USERNAME
+              value: {{ sonarqube_db_user | quote }}
+            - name: SONAR_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonarqube-env
+                  key: SONARQUBE_DB_PASSWORD
+            # JVM heap sizes — tuned for a 16 GB VM with other workloads present
+            - name: SONAR_WEB_JAVAOPTS
+              value: "-Xms256m -Xmx512m"
+            - name: SONAR_CE_JAVAOPTS
+              value: "-Xms256m -Xmx512m"
+            - name: SONAR_SEARCH_JAVAOPTS
+              value: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m"
+          readinessProbe:
+            httpGet:
+              path: /api/system/status
+              port: 9000
+            # SonarQube takes several minutes to initialise on first boot
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /api/system/status
+              port: 9000
+            initialDelaySeconds: 300
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: 1500Mi
+              cpu: 500m
+            limits:
+              memory: 2048Mi
+              cpu: 2000m
+          volumeMounts:
+            - name: data
+              mountPath: /opt/sonarqube/data
+            - name: temp
+              mountPath: /opt/sonarqube/temp
+            - name: logs
+              mountPath: /opt/sonarqube/logs
+            - name: extensions
+              mountPath: /opt/sonarqube/extensions
+      volumes:
+        - name: temp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: extensions
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ storage_class_name | quote }}
+        resources:
+          requests:
+            storage: {{ sonarqube_storage_size }}
+---
+# ── Ingress ───────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - {{ sonarqube_domain | quote }}
+      secretName: sonarqube-tls
+  rules:
+    - host: {{ sonarqube_domain | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sonarqube
+                port:
+                  number: 9000

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { login, register } from '../services/api';
+import { hasStoredToken, login, register } from '../services/api';
 import { Form, Button, Container, Alert, Tabs, Tab } from 'react-bootstrap';
 
 function Login() {
@@ -13,7 +13,7 @@ function Login() {
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
-  if (localStorage.getItem('token')) {
+  if (hasStoredToken()) {
     return <Navigate to="/transactions" replace />;
   }
 

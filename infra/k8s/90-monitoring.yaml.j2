@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: debts-bot
+  namespace: {{ app_namespace }}
+  labels:
+    release: {{ monitoring_release_name }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ app_namespace }}
+  selector:
+    matchLabels:
+      app: debts-bot
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debtsapp-grafana-dashboard
+  namespace: {{ monitoring_namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  debtsapp-observability.json: |
+{{ lookup('template', playbook_dir + '/../k8s/grafana-dashboard.json.j2') | indent(4, first=True) }}

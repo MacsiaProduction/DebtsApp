@@ -1,0 +1,64 @@
+name: Telegram notification
+description: Sends a CI/CD job status message to every chat ID in a comma-separated whitelist.
+
+inputs:
+  bot_token:
+    required: true
+  chat_ids:
+    description: Comma-separated list of Telegram chat IDs (stored in TELEGRAM_CHAT_IDS secret)
+    required: true
+  status:
+    required: true   # success | failure | cancelled | skipped
+  job_name:
+    required: true
+  workflow:
+    required: true
+  ref_name:
+    required: true
+  run_url:
+    required: true
+  details:
+    description: Optional error summary shown as a spoiler on failure
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Send Telegram message to all whitelisted recipients
+      shell: bash
+      env:
+        BOT_TOKEN: ${{ inputs.bot_token }}
+        CHAT_IDS:  ${{ inputs.chat_ids }}
+        STATUS:    ${{ inputs.status }}
+        JOB_NAME:  ${{ inputs.job_name }}
+        WORKFLOW:  ${{ inputs.workflow }}
+        REF_NAME:  ${{ inputs.ref_name }}
+        RUN_URL:   ${{ inputs.run_url }}
+        DETAILS:   ${{ inputs.details }}
+      run: |
+        case "$STATUS" in
+          success)   EMOJI="✅" ;;
+          failure)   EMOJI="❌" ;;
+          cancelled) EMOJI="⏸" ;;
+          *)         EMOJI="⚪" ;;
+        esac
+
+        DETAILS_ESC="$(printf '%s' "$DETAILS" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')"
+
+        TEXT="${EMOJI} <b>${JOB_NAME}</b>"$'\n'"Branch: <code>${REF_NAME}</code> | ${STATUS}"$'\n'"<a href=\"${RUN_URL}\">${WORKFLOW}</a>"
+        if [ -n "$DETAILS_ESC" ] && [ "$STATUS" = "failure" ]; then
+          TEXT="${TEXT}"$'\n'"<tg-spoiler>${DETAILS_ESC}</tg-spoiler>"
+        fi
+
+        IFS=',' read -ra IDS <<< "$CHAT_IDS"
+        for raw_id in "${IDS[@]}"; do
+          chat_id="$(echo "$raw_id" | tr -d ' ')"
+          [ -z "$chat_id" ] && continue
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${chat_id}" \
+            --data-urlencode "text=${TEXT}" \
+            -d "parse_mode=HTML" \
+            -d "disable_web_page_preview=true" \
+            -o /dev/null
+        done
