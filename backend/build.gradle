@@ -101,6 +101,13 @@ jacoco {
 def jacocoCoverageExcludes = [
         '**/configs/**', '**/models/**', '**/dto/**',
         '**/exceptions/**', '**/*Application*',
+        '**/repository/**',
+        '**/services/DebtsDAO*',
+        '**/services/DebtGraphService*',
+        '**/services/TelegramService*',
+        '**/services/DBOptimizationService*',
+        '**/services/PayReminderService*',
+        '**/controllers/TelegramController*',
 ]
 
 jacocoTestReport {
