@@ -254,6 +254,14 @@ jobs:
         working-directory: backend
         run: ./gradlew classes --no-daemon
 
+#        Временная проверка токена
+      - name: Check project access
+        run: |
+          curl -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/projects/search?projects=MacsiaProduction_DebtsApp"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
       - name: Run SonarQube analysis
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         env:
