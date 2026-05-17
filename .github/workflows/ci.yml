@@ -281,14 +281,34 @@ jobs:
 #        env:
 #          SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
 #          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
-      - name: SonarQube Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@d304d050d930b02a896b0f85935344f023928496
-        timeout-minutes: 5
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
+      - name: Check SonarCloud Quality Gate
+        run: |
+          set -e
+
+          CE_TASK_URL=$(grep ceTaskUrl .scannerwork/report-task.txt | cut -d= -f2-)
+
+          echo "Waiting for analysis..."
+          while true; do
+            STATUS=$(curl -s -u "${SONAR_TOKEN}:" "$CE_TASK_URL" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin)['task']['status'])")
+
+            echo "CE status: $STATUS"
+
+            [ "$STATUS" = "SUCCESS" ] && break
+            [ "$STATUS" = "FAILED" ] && exit 1
+
+            sleep 5
+          done
+
+          GATE=$(curl -s -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=MacsiaProduction_DebtsApp" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['projectStatus']['status'])")
+
+          echo "Quality Gate: $GATE"
+
+          [ "$GATE" = "OK" ] || exit 1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Collect SonarQube gate details
         if: failure()
