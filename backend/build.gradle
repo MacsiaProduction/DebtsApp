@@ -98,6 +98,11 @@ jacoco {
     toolVersion = '0.8.11'
 }
 
+def jacocoCoverageExcludes = [
+        '**/configs/**', '**/models/**', '**/dto/**',
+        '**/exceptions/**', '**/*Application*',
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
@@ -105,12 +110,29 @@ jacocoTestReport {
     }
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, excludes: [
-                '**/configs/**', '**/models/**', '**/dto/**',
-                '**/exceptions/**', '**/*Application*',
-            ])
+            fileTree(dir: it, excludes: jacocoCoverageExcludes)
         }))
     }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, excludes: jacocoCoverageExcludes)
+        }))
+    }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
 
 tasks.named('test') {

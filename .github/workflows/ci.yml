@@ -12,6 +12,9 @@ on:
         type: boolean
         default: false
 
+env:
+  SONAR_HOST_URL: ${{ vars.SONARQUBE_URL != '' && vars.SONARQUBE_URL || 'https://sonarcloud.io' }}
+
 jobs:
   backend-test:
     name: "Backend: unit-тесты"
@@ -29,7 +32,7 @@ jobs:
 
       - name: Run backend unit tests with coverage
         working-directory: backend
-        run: ./gradlew test jacocoTestReport --no-daemon
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification --no-daemon
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
@@ -47,7 +50,8 @@ jobs:
           path: backend/build/reports/jacoco/test/jacocoTestReport.xml
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -57,6 +61,7 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "Coverage below 80% or unit tests failed"
 
   backend-build:
     name: "Backend: компиляция"
@@ -78,7 +83,8 @@ jobs:
         run: ./gradlew classes --no-daemon
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -111,7 +117,8 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -162,7 +169,8 @@ jobs:
           path: frontend/coverage/lcov.info
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -172,6 +180,7 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "Coverage below 80% or unit tests failed"
 
   frontend-build:
     name: "Frontend: production-сборка"
@@ -198,7 +207,8 @@ jobs:
         run: npm run build
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -213,6 +223,8 @@ jobs:
     name: "SonarQube: анализ качества кода"
     runs-on: ubuntu-latest
     needs: [ backend-integration, frontend-test ]
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -246,10 +258,40 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONARQUBE_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+
+      - name: Collect SonarQube gate details
+        if: failure()
+        id: sonar-gate
+        run: |
+          PROJECT_KEY="MacsiaProduction_DebtsApp"
+          RESPONSE="$(curl -s -u "${SONAR_TOKEN}:" \
+            "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}" || echo '{}')"
+          STATUS="$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('projectStatus',{}).get('status','UNKNOWN'))")"
+          CONDITIONS="$(echo "$RESPONSE" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          for c in d.get('projectStatus',{}).get('conditions',[]):
+              print(f\"{c.get('metricKey')}: {c.get('actualValue')} (required {c.get('comparator')} {c.get('errorThreshold')}) -> {c.get('status')}\")
+          ")"
+          {
+            echo "gate_status=${STATUS}"
+            echo "gate_details<<EOF"
+            echo "Quality Gate: ${STATUS}"
+            echo "${CONDITIONS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -259,6 +301,7 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   ${{ steps.sonar-gate.outputs.gate_details }}
 
   publish-images:
     name: "Docker: публикация образов в GHCR"
@@ -270,7 +313,7 @@ jobs:
       contains(fromJson('["refs/heads/master","refs/heads/main","refs/heads/lab3","refs/heads/lab4"]'), github.ref) &&
       (
         (github.event_name == 'push' && needs.sonarqube-scan.result == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.force_publish == true)
+        (github.event_name == 'workflow_dispatch' && inputs.force_publish == true && github.ref_name == 'lab3')
       )
     runs-on: ubuntu-latest
     needs:
@@ -331,7 +374,8 @@ jobs:
           tags: ${{ steps.frontend-meta.outputs.tags }}
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -370,7 +414,8 @@ jobs:
           git push
 
       - name: Notify Telegram
-        if: always()
+        if: failure()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
@@ -380,3 +425,118 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  argocd-verify:
+    name: "Argo CD: проверка CD sync"
+    runs-on: ubuntu-latest
+    needs: [ update-argocd-image ]
+    if: needs.update-argocd-image.result == 'success'
+    env:
+      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+      APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+    steps:
+      - name: Wait for Argo CD application sync
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          ARGOCD_SERVER="${ARGOCD_SERVER:-argocd.macsia.fun}"
+          if [ -z "${ARGOCD_AUTH_TOKEN}" ]; then
+            echo "ARGOCD_AUTH_TOKEN secret is required for CD verification"
+            exit 1
+          fi
+          APP_URL="https://${ARGOCD_SERVER}/api/v1/applications/debtsapp"
+          for attempt in $(seq 1 36); do
+            BODY="$(curl -sf -H "Authorization: Bearer ${ARGOCD_AUTH_TOKEN}" "${APP_URL}")"
+            HEALTH="$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['health']['status'])")"
+            SYNC="$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['sync']['status'])")"
+            echo "Attempt ${attempt}: health=${HEALTH} sync=${SYNC}"
+            if [ "$HEALTH" = "Healthy" ] && [ "$SYNC" = "Synced" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Argo CD application did not become Healthy/Synced in time"
+          exit 1
+
+      - name: Verify application health endpoint
+        run: |
+          set -euo pipefail
+          APP_DOMAIN="${APP_DOMAIN:-debtsapp.macsia.fun}"
+          curl --fail --silent --show-error --max-time 60 \
+            "https://${APP_DOMAIN}/api/actuator/health"
+
+      - name: Notify Telegram
+        if: failure()
+        continue-on-error: true
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ job.status }}
+          job_name:  "Argo CD CD verify"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "Argo CD sync or app health check failed"
+
+  pipeline-summary:
+    name: "Pipeline: итог CI/CD"
+    runs-on: ubuntu-latest
+    needs:
+      - backend-test
+      - backend-build
+      - backend-integration
+      - frontend-test
+      - frontend-build
+      - sonarqube-scan
+      - publish-images
+      - update-argocd-image
+      - argocd-verify
+    if: always()
+    steps:
+      - name: Compose pipeline status
+        id: summary
+        run: |
+          set -euo pipefail
+          STATUS=success
+          FAILED=""
+          check() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              STATUS=failure
+              FAILED="${FAILED}${name} (${result}); "
+            fi
+          }
+          check "backend-test" "${{ needs.backend-test.result }}"
+          check "backend-build" "${{ needs.backend-build.result }}"
+          check "backend-integration" "${{ needs.backend-integration.result }}"
+          check "frontend-test" "${{ needs.frontend-test.result }}"
+          check "frontend-build" "${{ needs.frontend-build.result }}"
+          check "sonarqube-scan" "${{ needs.sonarqube-scan.result }}"
+          check "publish-images" "${{ needs.publish-images.result }}"
+          check "update-argocd-image" "${{ needs.update-argocd-image.result }}"
+          check "argocd-verify" "${{ needs.argocd-verify.result }}"
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "details=${FAILED}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify Telegram pipeline summary
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ steps.summary.outputs.status }}
+          job_name:  "Pipeline summary"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   ${{ steps.summary.outputs.details }}
+
+      - name: Fail workflow when pipeline failed
+        if: steps.summary.outputs.status == 'failure'
+        run: exit 1

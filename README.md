@@ -43,3 +43,4 @@ make deploy
 - Grafana is deployed with the `grafana` admin user; the generated local password is stored in ignored `local-passwords.env`.
 - Lab 3 load testing is available as the manual `Load Test: backend HPA` GitHub Actions workflow.
 - Backend unit tests run with `./gradlew test`; Docker-backed persistence coverage runs with `./gradlew integrationTest`.
+- Lab 4 CI uses SonarCloud static analysis, enforces **80%** test coverage, deploys via Argo CD GitOps on `lab4`, and sends pipeline status to Telegram. See [docs/sonarcloud-setup.md](docs/sonarcloud-setup.md) and [infra/README.md](infra/README.md#lab-4-sonarcloud-argo-cd-cd-telegram).

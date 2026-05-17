@@ -120,4 +120,34 @@ The manual deploy workflow expects:
 - `GRAFANA_ADMIN_PASSWORD`
 - `BOT_TOKEN` optionally
 
+CI/CD (Lab 4) additionally uses:
+
+- `SONAR_TOKEN` — SonarCloud user token ([setup guide](../docs/sonarcloud-setup.md))
+- Repository variable `SONARQUBE_URL` = `https://sonarcloud.io`
+- `TELEGRAM_CHAT_IDS` — comma-separated Telegram chat IDs for pipeline notifications
+- `ARGOCD_AUTH_TOKEN` — Argo CD API token for post-deploy sync verification on `lab4`
+- `ARGOCD_SERVER` (optional) — defaults to `argocd.macsia.fun`
+- `APP_DOMAIN` (optional) — defaults to `debtsapp.macsia.fun`
+
 Keep only example values in git. Real secrets stay ignored.
+
+## Lab 4: SonarCloud, Argo CD CD, Telegram
+
+### SonarCloud (CI)
+
+The `CI: сборка и тесты` workflow runs a dedicated `sonarqube-scan` job against [SonarCloud](https://sonarcloud.io). The pipeline fails when:
+
+- unit tests or JaCoCo/Jest coverage drop below **80%**
+- the SonarCloud Quality Gate fails (coverage, bugs, vulnerabilities, hotspots)
+
+See [docs/sonarcloud-setup.md](../docs/sonarcloud-setup.md) for Quality Gate configuration on sonarcloud.io.
+
+### Argo CD continuous delivery
+
+After images are published to GHCR on branch `lab4`, CI commits new image tags to `infra/helm/debtsapp-app/values.yaml`. Argo CD Application `debtsapp` (installed by Ansible from `infra/k8s/92-argocd-app.yaml.j2`) syncs the Helm chart automatically. Job `argocd-verify` waits for `Healthy` + `Synced` and checks `https://<app_domain>/api/actuator/health`.
+
+Initial cluster bootstrap remains the manual **Deploy: VM и приложение** workflow; subsequent releases are GitOps-only.
+
+### Telegram CI/CD bot
+
+Create a bot via [@BotFather](https://t.me/BotFather), store the token in `BOT_TOKEN`, and add your chat ID(s) to `TELEGRAM_CHAT_IDS` (comma-separated). The reusable action `.github/actions/notify-telegram` sends per-job alerts on failure and a final pipeline summary.
