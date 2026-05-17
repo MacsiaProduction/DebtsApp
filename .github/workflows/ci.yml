@@ -274,6 +274,8 @@ jobs:
         env:
           SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
 #      - name: Check SonarCloud Quality Gate
 #        run: |
 #          set -e
