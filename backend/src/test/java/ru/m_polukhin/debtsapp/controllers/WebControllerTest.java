@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -173,5 +174,64 @@ class WebControllerTest {
                         .param("comment", "new-comment"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comment").value("new-comment"));
+    }
+
+    @Test
+    void testFindAllTransactionsFromTo() throws Exception {
+        when(debtsDAO.getIdByName("user1")).thenReturn(1L);
+        when(debtsDAO.getIdByName("user2")).thenReturn(2L);
+        when(debtsDAO.findAllTransactionsFromTo("user1", "user2", PageRequest.of(0, 10)))
+                .thenReturn(new CustomPageImpl<>(List.of(
+                        new TransactionInfo(12L, "user1", "user2", 10L, 0L, "between")
+                )));
+
+        var response = webController.findAllTransactionsFromTo(
+                USER_PRINCIPAL, "user1", "user2", 0, 10);
+
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().getFirst().comment()).isEqualTo("between");
+    }
+
+    @Test
+    void testGetDebtRejectsUnrelatedPrincipal() throws Exception {
+        when(debtsDAO.getIdByName("other1")).thenReturn(2L);
+        when(debtsDAO.getIdByName("other2")).thenReturn(3L);
+
+        mockMvc.perform(get("/debts/between")
+                        .principal(USER_PRINCIPAL)
+                        .param("chatId", "1")
+                        .param("fromName", "other1")
+                        .param("toName", "other2"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testDeleteTransactionNotFound() throws Exception {
+        when(debtsDAO.deleteTransaction(1L, 99L))
+                .thenThrow(new IllegalArgumentException("Transaction not found"));
+
+        mockMvc.perform(delete("/transactions/99").principal(USER_PRINCIPAL))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testUpdateTransactionCommentForbidden() throws Exception {
+        doThrow(new SecurityException("Only sender can edit"))
+                .when(debtsDAO).updateTransactionComment(1L, 25L, "hack");
+
+        mockMvc.perform(post("/transactions/25/comment")
+                        .principal(USER_PRINCIPAL)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("comment", "hack"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testFindAllTransactionsRelatedReturnsBadRequestWhenUserMissing() throws Exception {
+        when(debtsDAO.findAllTransactionsRelated(eq(1L), any()))
+                .thenThrow(new UserNotFoundException("missing"));
+
+        mockMvc.perform(get("/transactions").principal(USER_PRINCIPAL))
+                .andExpect(status().isBadRequest());
     }
 }
