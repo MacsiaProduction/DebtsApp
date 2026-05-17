@@ -6,6 +6,11 @@ import ru.m_polukhin.debtsapp.exceptions.ParseException;
 
 public class CalculatorTest {
     @Test
+    public void testEvaluateExpressionRejectsInvalidInput() {
+        Assertions.assertThrows(ParseException.class, () -> Calculator.evaluateExpression("not-a-formula"));
+    }
+
+    @Test
     public void testEvaluateExpression() throws ParseException {
         Assertions.assertEquals(5, Calculator.evaluateExpression("(5 + 5) / 2"));
         Assertions.assertEquals(12, Calculator.evaluateExpression("2 * (3 + 3)"));

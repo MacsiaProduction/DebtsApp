@@ -117,6 +117,7 @@ jobs:
 
       - name: Notify Telegram on deploy result
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
