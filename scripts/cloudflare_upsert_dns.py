@@ -80,6 +80,12 @@ def upsert_record(token: str, zone_id: str, fqdn: str, ip: str, *, proxied: bool
     print(f"updated {fqdn} -> {ip} (was {existing.get('content')}, proxied={proxied})")
 
 
+def verify_token(token: str) -> None:
+    data = cf_request("GET", "/user/tokens/verify", token)
+    status = (data.get("result") or {}).get("status", "")
+    print(f"Cloudflare token verified, status={status}")
+
+
 def main() -> int:
     token = os.environ.get("CLOUDFLARE_API_TOKEN") or os.environ.get("CLOUDFLARE_TOKEN", "")
     if not token:
@@ -107,9 +113,24 @@ def main() -> int:
             print(f"refusing to touch {fqdn}: outside zone {zone_name}", file=sys.stderr)
             return 1
 
+    verify_token(token)
     zone_id = find_zone_id(token, zone_name)
+    print(f"Resolved zone {zone_name} -> {zone_id}")
     for fqdn in fqdns:
-        upsert_record(token, zone_id, fqdn, target_ip, proxied=proxied, ttl=ttl)
+        try:
+            upsert_record(token, zone_id, fqdn, target_ip, proxied=proxied, ttl=ttl)
+        except SystemExit as exc:
+            msg = str(exc)
+            if "10000" in msg or "Authentication error" in msg:
+                print(
+                    "\nHINT: the Cloudflare API token can list zones but cannot read/edit DNS records.\n"
+                    "Recreate the token at https://dash.cloudflare.com/profile/api-tokens with:\n"
+                    "  • Permissions: Zone -> DNS -> Edit\n"
+                    "  • Zone Resources: Include -> Specific zone -> macsia.fun\n"
+                    "Then update the CLOUDFLARE_TOKEN GitHub secret.",
+                    file=sys.stderr,
+                )
+            raise
     return 0
 
 
