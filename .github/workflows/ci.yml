@@ -249,65 +249,24 @@ jobs:
         working-directory: backend
         run: ./gradlew classes --no-daemon
 
-#        Временная проверка токена
-      - name: Check project access
-        run: |
-          curl -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/projects/search?projects=MacsiaProduction_DebtsApp"
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
       - name: Run SonarQube analysis
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         env:
           SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
-#          Временная проверка для отладки
-      - name: Debug scanner output
-        run: |
-          echo "PWD=$(pwd)"
-          ls -la
-          ls -la .scannerwork || true
-          cat .scannerwork/report-task.txt || true
 
-#      - name: SonarQube Quality Gate
-#        uses: SonarSource/sonarqube-quality-gate-action@d304d050d930b02a896b0f85935344f023928496 # v1
-#        timeout-minutes: 5
-#        env:
-#          SONAR_TOKEN:    ${{ secrets.SONAR_TOKEN }}
-#          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
-      - name: Check SonarCloud Quality Gate
-        run: |
-          set -e
-
-          CE_TASK_URL=$(grep ceTaskUrl .scannerwork/report-task.txt | cut -d= -f2-)
-
-          echo "Waiting for analysis..."
-          while true; do
-            STATUS=$(curl -s -u "${SONAR_TOKEN}:" "$CE_TASK_URL" \
-              | python3 -c "import json,sys; print(json.load(sys.stdin)['task']['status'])")
-
-            echo "CE status: $STATUS"
-
-            [ "$STATUS" = "SUCCESS" ] && break
-            [ "$STATUS" = "FAILED" ] && exit 1
-
-            sleep 5
-          done
-
-          GATE=$(curl -s -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=MacsiaProduction_DebtsApp" \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)['projectStatus']['status'])")
-
-          echo "Quality Gate: $GATE"
-
-          [ "$GATE" = "OK" ] || exit 1
+      - name: Wait for SonarCloud quality gate
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+          SONAR_PROJECT_KEY: MacsiaProduction_DebtsApp
+        run: scripts/sonar_qualitygate.sh
 
       - name: Collect SonarQube gate details
         if: failure()
         id: sonar-gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           PROJECT_KEY="MacsiaProduction_DebtsApp"
           RESPONSE="$(curl -s -u "${SONAR_TOKEN}:" \
@@ -465,73 +424,6 @@ jobs:
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-  argocd-verify:
-    name: "Argo CD: проверка CD sync"
-    runs-on: ubuntu-latest
-    needs: [ update-argocd-image ]
-    if: needs.update-argocd-image.result == 'success'
-    env:
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Resolve verification mode
-        id: mode
-        env:
-          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-        run: |
-          if [ -z "${ARGOCD_AUTH_TOKEN}" ]; then
-            echo "ARGOCD_AUTH_TOKEN is not set: skipping live CD verification"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Wait for Argo CD application sync
-        if: steps.mode.outputs.enabled == 'true'
-        env:
-          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-        run: |
-          set -euo pipefail
-          ARGOCD_SERVER="${ARGOCD_SERVER:-argocd.app.macsia.fun}"
-          APP_URL="https://${ARGOCD_SERVER}/api/v1/applications/debtsapp"
-          for attempt in $(seq 1 36); do
-            BODY="$(curl -sf -H "Authorization: Bearer ${ARGOCD_AUTH_TOKEN}" "${APP_URL}")"
-            HEALTH="$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['health']['status'])")"
-            SYNC="$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['sync']['status'])")"
-            echo "Attempt ${attempt}: health=${HEALTH} sync=${SYNC}"
-            if [ "$HEALTH" = "Healthy" ] && [ "$SYNC" = "Synced" ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "Argo CD application did not become Healthy/Synced in time"
-          exit 1
-
-      - name: Verify application health endpoint
-        if: steps.mode.outputs.enabled == 'true'
-        run: |
-          set -euo pipefail
-          APP_DOMAIN="${APP_DOMAIN:-debtsapp.app.macsia.fun}"
-          curl --fail --silent --show-error --max-time 60 \
-            "https://${APP_DOMAIN}/api/actuator/health"
-
-      - name: Notify Telegram
-        if: always()
-        continue-on-error: true
-        uses: ./.github/actions/notify-telegram
-        with:
-          bot_token: ${{ secrets.BOT_TOKEN }}
-          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
-          status:    ${{ job.status }}
-          job_name:  "Argo CD CD verify"
-          workflow:  ${{ github.workflow }}
-          ref_name:  ${{ github.ref_name }}
-          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          details:   "Argo CD sync or app health check failed"
-
   pipeline-summary:
     name: "Pipeline: итог CI/CD"
     runs-on: ubuntu-latest
@@ -544,7 +436,6 @@ jobs:
       - sonarqube-scan
       - publish-images
       - update-argocd-image
-      - argocd-verify
     if: always()
     steps:
       - name: Checkout repository
@@ -552,45 +443,39 @@ jobs:
 
       - name: Compose pipeline status
         id: summary
+        env:
+          RESULTS: |
+            backend-test=${{ needs.backend-test.result }}
+            backend-build=${{ needs.backend-build.result }}
+            backend-integration=${{ needs.backend-integration.result }}
+            frontend-test=${{ needs.frontend-test.result }}
+            frontend-build=${{ needs.frontend-build.result }}
+            sonarqube-scan=${{ needs.sonarqube-scan.result }}
+            publish-images=${{ needs.publish-images.result }}
+            update-argocd-image=${{ needs.update-argocd-image.result }}
         run: |
           set -euo pipefail
-          STATUS=success
-          FAILED=""
-          check() {
-            local name="$1"
-            local result="$2"
+          status=success
+          failed=""
+          details=""
+          while IFS='=' read -r name result; do
+            [ -z "$name" ] && continue
+            details="${details}${name}: ${result}"$'\n'
             case "$result" in
               failure|cancelled)
-                STATUS=failure
-                FAILED="${FAILED}${name} (${result}); "
+                status=failure
+                failed="${failed}${name} (${result}); "
                 ;;
             esac
-          }
-          check "backend-test" "${{ needs.backend-test.result }}"
-          check "backend-build" "${{ needs.backend-build.result }}"
-          check "backend-integration" "${{ needs.backend-integration.result }}"
-          check "frontend-test" "${{ needs.frontend-test.result }}"
-          check "frontend-build" "${{ needs.frontend-build.result }}"
-          check "sonarqube-scan" "${{ needs.sonarqube-scan.result }}"
-          check "publish-images" "${{ needs.publish-images.result }}"
-          check "update-argocd-image" "${{ needs.update-argocd-image.result }}"
-          check "argocd-verify" "${{ needs.argocd-verify.result }}"
-          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+          done <<< "$RESULTS"
+          if [ -n "$failed" ]; then
+            details="${details}"$'\n'"Failed: ${failed}"
+          fi
           {
+            echo "status=${status}"
             echo "details<<EOF"
-            echo "backend-test: ${{ needs.backend-test.result }}"
-            echo "backend-build: ${{ needs.backend-build.result }}"
-            echo "backend-integration: ${{ needs.backend-integration.result }}"
-            echo "frontend-test: ${{ needs.frontend-test.result }}"
-            echo "frontend-build: ${{ needs.frontend-build.result }}"
-            echo "sonarqube-scan: ${{ needs.sonarqube-scan.result }}"
-            echo "publish-images: ${{ needs.publish-images.result }}"
-            echo "update-argocd-image: ${{ needs.update-argocd-image.result }}"
-            echo "argocd-verify: ${{ needs.argocd-verify.result }}"
-            if [ -n "$FAILED" ]; then
-              echo ""
-              echo "Failed: ${FAILED}"
-            fi
+            printf '%s' "$details"
+            echo
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 

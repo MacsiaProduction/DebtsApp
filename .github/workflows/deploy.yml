@@ -113,21 +113,14 @@ jobs:
           github_repo_token:    ${{ secrets.GHCR_PULL_TOKEN }}
 
       - name: Provision VM and prepare inventory
+        id: vm
         uses: ./.github/actions/provision-vm
-
-      - name: Resolve VM public IP
-        id: vm_ip
-        run: |
-          set -euo pipefail
-          host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
-          echo "host=${host}" >> "$GITHUB_OUTPUT"
-          echo "VM public IP: ${host}"
 
       - name: Upsert Cloudflare DNS records for project subdomains
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
           CF_ZONE_NAME:         ${{ inputs.cloudflare_zone }}
-          CF_TARGET_IP:         ${{ steps.vm_ip.outputs.host }}
+          CF_TARGET_IP:         ${{ steps.vm.outputs.host }}
           CF_RECORDS:           "${{ inputs.app_domain }},${{ inputs.grafana_domain }},${{ inputs.sonarqube_domain }},${{ inputs.argocd_domain }}"
           CF_PROXIED:           "false"
           CF_TTL:               "60"
@@ -157,4 +150,4 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          details:   "VM=${{ inputs.vm_name }} ip=${{ steps.vm_ip.outputs.host }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"
+          details:   "VM=${{ inputs.vm_name }} ip=${{ steps.vm.outputs.host }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"

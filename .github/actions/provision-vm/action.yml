@@ -9,6 +9,17 @@ inputs:
     required: false
     default: infra/ansible/inventory.ini
 
+outputs:
+  host:
+    description: Public IPv4 address of the provisioned VM
+    value: ${{ steps.resolve.outputs.host }}
+  user:
+    description: SSH username for the VM
+    value: ${{ steps.resolve.outputs.user }}
+  port:
+    description: SSH port for the VM
+    value: ${{ steps.resolve.outputs.port }}
+
 runs:
   using: composite
   steps:
@@ -21,14 +32,21 @@ runs:
         bash scripts/terraform_apply.sh "${{ inputs.tf_dir }}"
 
     - name: Resolve VM host and render Ansible inventory
+      id: resolve
       shell: bash
       run: |
+        set -euo pipefail
         python scripts/resolve_ssh_host.py > /tmp/host.json
         SSH_KEY_FILE="$HOME/.ssh/debtsapp_vm" \
           bash scripts/render-ansible-inventory.sh /tmp/host.json > "${{ inputs.inventory_path }}"
+        python3 - <<'PY' >> "$GITHUB_OUTPUT"
+        import json
+        with open("/tmp/host.json") as fh:
+            info = json.load(fh)
+        for key in ("host", "user", "port"):
+            print(f"{key}={info[key]}")
+        PY
 
     - name: Wait for SSH on VM
       shell: bash
-      run: |
-        host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
-        bash scripts/wait_for_ssh.sh "$host"
+      run: bash scripts/wait_for_ssh.sh "${{ steps.resolve.outputs.host }}"

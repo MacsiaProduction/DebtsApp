@@ -24,7 +24,7 @@ spec:
   project: default
   source:
     repoURL: {{ github_repo_url | default('https://github.com/MacsiaProduction/DebtsApp') | quote }}
-    targetRevision: lab4
+    targetRevision: master
     path: infra/helm/debtsapp-app
   destination:
     server: https://kubernetes.default.svc

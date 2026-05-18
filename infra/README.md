@@ -125,9 +125,7 @@ CI/CD (Lab 4) additionally uses:
 - `SONAR_TOKEN` — SonarCloud user token ([setup guide](../docs/sonarcloud-setup.md))
 - Repository variable `SONARQUBE_URL` = `https://sonarcloud.io`
 - `TELEGRAM_CHAT_IDS` — comma-separated Telegram chat IDs for pipeline notifications
-- `ARGOCD_AUTH_TOKEN` — Argo CD API token for post-deploy sync verification on `lab4`
-- `ARGOCD_SERVER` (optional) — defaults to `argocd.app.macsia.fun`
-- `APP_DOMAIN` (optional) — defaults to `debtsapp.app.macsia.fun`
+- `CLOUDFLARE_TOKEN` — Cloudflare API token (Zone DNS Edit on `macsia.fun`) used by deploy to point `*.app.macsia.fun` records at the freshly provisioned VM
 
 Keep only example values in git. Real secrets stay ignored.
 
