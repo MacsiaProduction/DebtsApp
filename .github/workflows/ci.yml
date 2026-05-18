@@ -50,7 +50,7 @@ jobs:
           path: backend/build/reports/jacoco/test/jacocoTestReport.xml
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -83,7 +83,7 @@ jobs:
         run: ./gradlew classes --no-daemon
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -117,7 +117,7 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -169,7 +169,7 @@ jobs:
           path: frontend/coverage/lcov.info
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -207,7 +207,7 @@ jobs:
         run: npm run build
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -333,7 +333,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -417,7 +417,7 @@ jobs:
           tags: ${{ steps.frontend-meta.outputs.tags }}
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -432,7 +432,10 @@ jobs:
   update-argocd-image:
     name: "GitOps: обновить image tag для Argo CD"
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'lab4'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      contains(fromJson('["master","main","lab4"]'), github.ref_name) &&
+      needs.publish-images.result == 'success'
     needs: [ publish-images ]
     permissions:
       contents: write
@@ -457,7 +460,7 @@ jobs:
           git push
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -510,7 +513,7 @@ jobs:
             "https://${APP_DOMAIN}/api/actuator/health"
 
       - name: Notify Telegram
-        if: failure()
+        if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
@@ -538,6 +541,9 @@ jobs:
       - argocd-verify
     if: always()
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Compose pipeline status
         id: summary
         run: |
@@ -547,10 +553,12 @@ jobs:
           check() {
             local name="$1"
             local result="$2"
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              STATUS=failure
-              FAILED="${FAILED}${name} (${result}); "
-            fi
+            case "$result" in
+              failure|cancelled)
+                STATUS=failure
+                FAILED="${FAILED}${name} (${result}); "
+                ;;
+            esac
           }
           check "backend-test" "${{ needs.backend-test.result }}"
           check "backend-build" "${{ needs.backend-build.result }}"
@@ -562,9 +570,23 @@ jobs:
           check "update-argocd-image" "${{ needs.update-argocd-image.result }}"
           check "argocd-verify" "${{ needs.argocd-verify.result }}"
           echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
-          if [ -n "$FAILED" ]; then
-            echo "details=${FAILED}" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "details<<EOF"
+            echo "backend-test: ${{ needs.backend-test.result }}"
+            echo "backend-build: ${{ needs.backend-build.result }}"
+            echo "backend-integration: ${{ needs.backend-integration.result }}"
+            echo "frontend-test: ${{ needs.frontend-test.result }}"
+            echo "frontend-build: ${{ needs.frontend-build.result }}"
+            echo "sonarqube-scan: ${{ needs.sonarqube-scan.result }}"
+            echo "publish-images: ${{ needs.publish-images.result }}"
+            echo "update-argocd-image: ${{ needs.update-argocd-image.result }}"
+            echo "argocd-verify: ${{ needs.argocd-verify.result }}"
+            if [ -n "$FAILED" ]; then
+              echo ""
+              echo "Failed: ${FAILED}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Notify Telegram pipeline summary
         if: always()

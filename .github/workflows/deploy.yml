@@ -66,6 +66,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Notify Telegram (deploy started)
+        continue-on-error: true
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    "started"
+          job_name:  "Deploy ${{ inputs.vm_name }} (start)"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - name: Set up deploy tooling (Terraform, Python, Ansible, SSH)
         uses: ./.github/actions/setup-deploy-tooling
         with:
@@ -127,3 +139,4 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "VM=${{ inputs.vm_name }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"

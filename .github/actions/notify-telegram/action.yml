@@ -18,7 +18,7 @@ inputs:
   run_url:
     required: true
   details:
-    description: Optional error summary shown as a spoiler on failure
+    description: Optional error summary shown as a collapsed quote block on failure
     required: false
     default: ''
 
@@ -37,28 +37,44 @@ runs:
         RUN_URL:   ${{ inputs.run_url }}
         DETAILS:   ${{ inputs.details }}
       run: |
+        if [ -z "${BOT_TOKEN}" ] || [ -z "${CHAT_IDS}" ]; then
+          echo "BOT_TOKEN or CHAT_IDS is empty, skipping Telegram notification"
+          exit 0
+        fi
+
         case "$STATUS" in
           success)   EMOJI="✅" ;;
           failure)   EMOJI="❌" ;;
           cancelled) EMOJI="⏸" ;;
+          skipped)   EMOJI="⏭" ;;
+          started)   EMOJI="🚀" ;;
           *)         EMOJI="⚪" ;;
         esac
 
-        DETAILS_ESC="$(printf '%s' "$DETAILS" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')"
+        esc() {
+          printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+        }
 
-        TEXT="${EMOJI} <b>${JOB_NAME}</b>"$'\n'"Branch: <code>${REF_NAME}</code> | ${STATUS}"$'\n'"<a href=\"${RUN_URL}\">${WORKFLOW}</a>"
-        if [ -n "$DETAILS_ESC" ] && [ "$STATUS" = "failure" ]; then
-          TEXT="${TEXT}"$'\n'"<tg-spoiler>${DETAILS_ESC}</tg-spoiler>"
+        JOB_ESC="$(esc "$JOB_NAME")"
+        WF_ESC="$(esc "$WORKFLOW")"
+        REF_ESC="$(esc "$REF_NAME")"
+        STATUS_ESC="$(esc "$STATUS")"
+        DETAILS_ESC="$(esc "$DETAILS")"
+
+        TEXT="${EMOJI} <b>${JOB_ESC}</b>"$'\n'"Branch: <code>${REF_ESC}</code> | ${STATUS_ESC}"$'\n'"<a href=\"${RUN_URL}\">${WF_ESC}</a>"
+        if [ -n "$DETAILS_ESC" ] && { [ "$STATUS" = "failure" ] || [ "$STATUS" = "cancelled" ]; }; then
+          TEXT="${TEXT}"$'\n'"<blockquote expandable>${DETAILS_ESC}</blockquote>"
         fi
 
         IFS=',' read -ra IDS <<< "$CHAT_IDS"
         for raw_id in "${IDS[@]}"; do
           chat_id="$(echo "$raw_id" | tr -d ' ')"
           [ -z "$chat_id" ] && continue
-          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+          response="$(curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -d "chat_id=${chat_id}" \
             --data-urlencode "text=${TEXT}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" \
-            -o /dev/null
+            -w '\nHTTP_STATUS=%{http_code}')"
+          echo "Telegram chat ${chat_id}: ${response}"
         done
