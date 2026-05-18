@@ -6,27 +6,22 @@ on:
       app_domain:
         description: Публичный DNS для DebtsApp
         required: false
-        default: debtsapp.macsia.fun
+        default: debtsapp.app.macsia.fun
         type: string
       grafana_domain:
         description: Публичный DNS для Grafana
         required: false
-        default: grafana.macsia.fun
+        default: grafana.app.macsia.fun
         type: string
       sonarqube_domain:
         description: Публичный DNS для SonarQube
         required: false
-        default: sonar.macsia.fun
+        default: sonar.app.macsia.fun
         type: string
       argocd_domain:
         description: Публичный DNS для Argo CD UI
         required: false
-        default: argocd.macsia.fun
-        type: string
-      k8s_dashboard_domain:
-        description: Публичный DNS для Kubernetes Dashboard
-        required: false
-        default: dashboard.macsia.fun
+        default: argocd.app.macsia.fun
         type: string
       acme_email:
         description: Email для HTTPS-сертификатов
@@ -47,6 +42,11 @@ on:
         description: Тег Docker-образов для deploy
         required: false
         default: lab4
+        type: string
+      cloudflare_zone:
+        description: Cloudflare zone, в которой живут DNS-записи
+        required: false
+        default: macsia.fun
         type: string
 
 jobs:
@@ -77,6 +77,7 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }} grafana=${{ inputs.grafana_domain }} sonar=${{ inputs.sonarqube_domain }} argocd=${{ inputs.argocd_domain }}"
 
       - name: Set up deploy tooling (Terraform, Python, Ansible, SSH)
         uses: ./.github/actions/setup-deploy-tooling
@@ -97,7 +98,6 @@ jobs:
           sonarqube_domain:     ${{ inputs.sonarqube_domain }}
           sonarqube_db_password: ${{ secrets.SONARQUBE_DB_PASSWORD }}
           argocd_domain:        ${{ inputs.argocd_domain }}
-          k8s_dashboard_domain: ${{ inputs.k8s_dashboard_domain }}
           acme_email:           ${{ inputs.acme_email }}
           image_tag:            ${{ inputs.image_tag }}
           repository_owner:     ${{ github.repository_owner }}
@@ -114,6 +114,24 @@ jobs:
 
       - name: Provision VM and prepare inventory
         uses: ./.github/actions/provision-vm
+
+      - name: Resolve VM public IP
+        id: vm_ip
+        run: |
+          set -euo pipefail
+          host="$(python -c 'import json;print(json.load(open("/tmp/host.json"))["host"])')"
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          echo "VM public IP: ${host}"
+
+      - name: Upsert Cloudflare DNS records for project subdomains
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CF_ZONE_NAME:         ${{ inputs.cloudflare_zone }}
+          CF_TARGET_IP:         ${{ steps.vm_ip.outputs.host }}
+          CF_RECORDS:           "${{ inputs.app_domain }},${{ inputs.grafana_domain }},${{ inputs.sonarqube_domain }},${{ inputs.argocd_domain }}"
+          CF_PROXIED:           "false"
+          CF_TTL:               "60"
+        run: python scripts/cloudflare_upsert_dns.py
 
       - name: Run Ansible deploy in k3s
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
@@ -139,4 +157,4 @@ jobs:
           workflow:  ${{ github.workflow }}
           ref_name:  ${{ github.ref_name }}
           run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          details:   "VM=${{ inputs.vm_name }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"
+          details:   "VM=${{ inputs.vm_name }} ip=${{ steps.vm_ip.outputs.host }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"

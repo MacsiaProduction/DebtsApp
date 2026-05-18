@@ -6,7 +6,7 @@ on:
       app_domain:
         description: Public domain
         required: false
-        default: debtsapp.macsia.fun
+        default: debtsapp.app.macsia.fun
         type: string
       vm_name:
         description: Yandex Cloud VM name
@@ -34,6 +34,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Notify Telegram (load test started)
+        continue-on-error: true
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    "started"
+          job_name:  "Load test ${{ inputs.vm_name }} (start)"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "stages=${{ inputs.k6_stages }} target=${{ inputs.app_domain }}"
 
       - name: Prepare SSH key
         uses: ./.github/actions/ssh-setup
@@ -113,3 +126,17 @@ jobs:
           path: |
             load-results/load-summary.json
             hpa-evidence.log
+
+      - name: Notify Telegram (load test result)
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/notify-telegram
+        with:
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          status:    ${{ job.status }}
+          job_name:  "Load test ${{ inputs.vm_name }}"
+          workflow:  ${{ github.workflow }}
+          ref_name:  ${{ github.ref_name }}
+          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          details:   "stages=${{ inputs.k6_stages }} target=${{ inputs.app_domain }}"

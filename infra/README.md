@@ -126,8 +126,8 @@ CI/CD (Lab 4) additionally uses:
 - Repository variable `SONARQUBE_URL` = `https://sonarcloud.io`
 - `TELEGRAM_CHAT_IDS` — comma-separated Telegram chat IDs for pipeline notifications
 - `ARGOCD_AUTH_TOKEN` — Argo CD API token for post-deploy sync verification on `lab4`
-- `ARGOCD_SERVER` (optional) — defaults to `argocd.macsia.fun`
-- `APP_DOMAIN` (optional) — defaults to `debtsapp.macsia.fun`
+- `ARGOCD_SERVER` (optional) — defaults to `argocd.app.macsia.fun`
+- `APP_DOMAIN` (optional) — defaults to `debtsapp.app.macsia.fun`
 
 Keep only example values in git. Real secrets stay ignored.
 

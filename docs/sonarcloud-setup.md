@@ -1,6 +1,6 @@
 # SonarCloud setup (Lab 4)
 
-CI uses [SonarCloud](https://sonarcloud.io) (free for public repositories). Self-hosted SonarQube on the cluster (`sonar.macsia.fun`) is optional and not used by the pipeline.
+CI uses [SonarCloud](https://sonarcloud.io) (free for public repositories). Self-hosted SonarQube on the cluster (`sonar.app.macsia.fun`) is optional and not used by the pipeline.
 
 ## 1. Import the project
 

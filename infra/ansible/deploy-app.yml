@@ -104,8 +104,6 @@
         dest: "{{ manifest_dir }}/app/{{ item | basename | regex_replace('\\.j2$', '') }}"
         mode: "0644"
       with_fileglob: "{{ playbook_dir }}/../k8s/[0-9]*.yaml.j2"
-      # Skip dashboard manifest while the upstream chart is unavailable.
-      when: "'93-k8s-dashboard' not in item"
 
     - name: Применить манифест ClusterIssuer
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/00-cluster-issuer.yaml
@@ -134,11 +132,6 @@
     - name: Дождаться готовности Argo CD server
       ansible.builtin.command: kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
       changed_when: false
-
-    # Kubernetes Dashboard отключён: проект архивирован, helm-репозиторий
-    # (https://kubernetes.github.io/dashboard/) недоступен. Для лабы достаточно
-    # Grafana + Argo CD UI. Манифест 93-k8s-dashboard.yaml оставлен в репозитории
-    # но не применяется (см. шаг "Применить манифесты приложения").
 
     # kubectl apply -f dir обрабатывает все манифесты директории разом.
     - name: Применить манифесты приложения
@@ -212,6 +205,29 @@
       when: (failed_rollouts | length > 0) or (missing_endpoints | length > 0)
       ansible.builtin.fail:
         msg: "Some Kubernetes workloads or Traefik service endpoints are not ready; see diagnostics above"
+
+    - name: Дождаться выпуска TLS-сертификатов cert-manager
+      ansible.builtin.shell: |
+        set -euo pipefail
+        deadline=$((SECONDS + 360))
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          not_ready="$(kubectl get certificates --all-namespaces \
+            -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}={.status.conditions[?(@.type=="Ready")].status} {end}' \
+            2>/dev/null | tr ' ' '\n' | grep -v '=True' | grep -v '^$' || true)"
+          if [ -z "$not_ready" ]; then
+            echo "all certificates Ready"
+            exit 0
+          fi
+          echo "waiting for: ${not_ready}"
+          sleep 10
+        done
+        echo "Timed out waiting for certificates: ${not_ready}" >&2
+        exit 1
+      args:
+        executable: /bin/bash
+      register: cert_wait
+      changed_when: false
+      failed_when: false
 
     - name: Проверить маршруты Traefik через локальный ingress
       ansible.builtin.shell: |

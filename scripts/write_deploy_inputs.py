@@ -56,11 +56,10 @@ def write_deploy_secrets() -> None:
         f"grafana_admin_user: {yaml_quote(os.environ.get('GRAFANA_ADMIN_USER', 'grafana'))}",
         f"grafana_admin_password: {yaml_quote(os.environ['GRAFANA_ADMIN_PASSWORD'])}",
         f"bot_token: {yaml_quote(os.environ.get('BOT_TOKEN', ''))}",
-        f"argocd_domain: {yaml_quote(os.environ.get('ARGOCD_DOMAIN', 'argocd.macsia.fun'))}",
-        f"k8s_dashboard_domain: {yaml_quote(os.environ.get('K8S_DASHBOARD_DOMAIN', 'dashboard.macsia.fun'))}",
+        f"argocd_domain: {yaml_quote(os.environ.get('ARGOCD_DOMAIN', 'argocd.app.macsia.fun'))}",
         f"github_repo_url: {yaml_quote(os.environ.get('GITHUB_REPO_URL', ''))}",
         f"github_repo_token: {yaml_quote(os.environ.get('GITHUB_REPO_TOKEN', ''))}",
-        f"sonarqube_domain: {yaml_quote(os.environ.get('SONARQUBE_DOMAIN', 'sonar.macsia.fun'))}",
+        f"sonarqube_domain: {yaml_quote(os.environ.get('SONARQUBE_DOMAIN', 'sonar.app.macsia.fun'))}",
         f"sonarqube_db_password: {yaml_quote(os.environ.get('SONARQUBE_DB_PASSWORD', ''))}",
     ]
     output = Path(os.environ.get("DEPLOY_SECRETS_OUTPUT", "infra/ansible/vars/deploy-secrets.yml"))

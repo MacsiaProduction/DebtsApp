@@ -47,16 +47,13 @@ inputs:
     default: ""
   sonarqube_domain:
     required: false
-    default: sonar.macsia.fun
+    default: sonar.app.macsia.fun
   sonarqube_db_password:
     required: false
     default: ""
   argocd_domain:
     required: false
-    default: argocd.macsia.fun
-  k8s_dashboard_domain:
-    required: false
-    default: dashboard.macsia.fun
+    default: argocd.app.macsia.fun
   github_repo_url:
     required: false
     default: ""
@@ -90,7 +87,6 @@ runs:
         GRAFANA_ADMIN_PASSWORD: ${{ inputs.grafana_admin_password }}
         BOT_TOKEN: ${{ inputs.bot_token }}
         ARGOCD_DOMAIN: ${{ inputs.argocd_domain }}
-        K8S_DASHBOARD_DOMAIN: ${{ inputs.k8s_dashboard_domain }}
         GITHUB_REPO_URL: ${{ inputs.github_repo_url }}
         GITHUB_REPO_TOKEN: ${{ inputs.github_repo_token }}
         SONARQUBE_DOMAIN: ${{ inputs.sonarqube_domain }}

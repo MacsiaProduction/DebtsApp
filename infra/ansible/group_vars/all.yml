@@ -1,11 +1,10 @@
 ---
 app_namespace: debtsapp
 monitoring_namespace: monitoring
-app_domain: debtsapp.macsia.fun
-grafana_domain: grafana.macsia.fun
-argocd_domain: argocd.macsia.fun
-k8s_dashboard_domain: dashboard.macsia.fun
-sonarqube_domain: sonar.macsia.fun
+app_domain: debtsapp.app.macsia.fun
+grafana_domain: grafana.app.macsia.fun
+argocd_domain: argocd.app.macsia.fun
+sonarqube_domain: sonar.app.macsia.fun
 sonarqube_db_user: sonarqube
 sonarqube_db_name: sonarqube
 sonarqube_storage_size: 10Gi
