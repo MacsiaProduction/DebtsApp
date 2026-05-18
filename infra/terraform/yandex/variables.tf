@@ -99,7 +99,7 @@ variable "enable_oslogin" {
 variable "boot_disk_type" {
   description = "Boot disk type."
   type        = string
-  default     = "network-ssd"
+  default     = "network-hdd"
 }
 
 variable "preemptible" {
