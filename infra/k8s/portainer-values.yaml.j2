@@ -26,6 +26,3 @@ ingress:
 
 # Bootstrap идёт через API /api/users/admin/init из Ansible
 # (chart-уровневые admin-secret'ы не поддерживают идемпотентный rerun).
-trusted_origins:
-  enabled: true
-  domains: "https://{{ portainer_domain }}"
