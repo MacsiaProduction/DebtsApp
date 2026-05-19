@@ -51,9 +51,18 @@ inputs:
   sonarqube_db_password:
     required: false
     default: ""
+  sonarqube_admin_password:
+    required: false
+    default: ""
   argocd_domain:
     required: false
     default: argocd.app.macsia.fun
+  argocd_admin_username:
+    required: false
+    default: ""
+  argocd_admin_password:
+    required: false
+    default: ""
   github_repo_url:
     required: false
     default: ""
@@ -91,6 +100,9 @@ runs:
         GITHUB_REPO_TOKEN: ${{ inputs.github_repo_token }}
         SONARQUBE_DOMAIN: ${{ inputs.sonarqube_domain }}
         SONARQUBE_DB_PASSWORD: ${{ inputs.sonarqube_db_password }}
+        SONARQUBE_ADMIN_PASSWORD: ${{ inputs.sonarqube_admin_password }}
+        ARGOCD_ADMIN_USERNAME: ${{ inputs.argocd_admin_username }}
+        ARGOCD_ADMIN_PASSWORD: ${{ inputs.argocd_admin_password }}
       run: |
         owner_lc="${REPOSITORY_OWNER,,}"
         export BACKEND_IMAGE="ghcr.io/${owner_lc}/debtsapp-backend:${IMAGE_TAG}"

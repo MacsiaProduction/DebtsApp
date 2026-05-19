@@ -61,6 +61,9 @@ def write_deploy_secrets() -> None:
         f"github_repo_token: {yaml_quote(os.environ.get('GITHUB_REPO_TOKEN', ''))}",
         f"sonarqube_domain: {yaml_quote(os.environ.get('SONARQUBE_DOMAIN', 'sonar.app.macsia.fun'))}",
         f"sonarqube_db_password: {yaml_quote(os.environ.get('SONARQUBE_DB_PASSWORD', ''))}",
+        f"sonarqube_admin_password: {yaml_quote(os.environ.get('SONARQUBE_ADMIN_PASSWORD', ''))}",
+        f"argocd_admin_username: {yaml_quote(os.environ.get('ARGOCD_ADMIN_USERNAME', 'argo'))}",
+        f"argocd_admin_password: {yaml_quote(os.environ.get('ARGOCD_ADMIN_PASSWORD', ''))}",
     ]
     output = Path(os.environ.get("DEPLOY_SECRETS_OUTPUT", "infra/ansible/vars/deploy-secrets.yml"))
     output.parent.mkdir(parents=True, exist_ok=True)

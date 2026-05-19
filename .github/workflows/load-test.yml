@@ -35,17 +35,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Notify Telegram (load test started)
+      - name: Notify Telegram (start)
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
-          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    "started"
-          job_name:  "Load test ${{ inputs.vm_name }} (start)"
-          workflow:  ${{ github.workflow }}
-          ref_name:  ${{ github.ref_name }}
-          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          job_name:  "🐎 Load test ${{ inputs.vm_name }}"
           details:   "stages=${{ inputs.k6_stages }} target=${{ inputs.app_domain }}"
 
       - name: Prepare SSH key
@@ -127,16 +124,13 @@ jobs:
             load-results/load-summary.json
             hpa-evidence.log
 
-      - name: Notify Telegram (load test result)
+      - name: Notify Telegram (result)
         if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
-          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "Load test ${{ inputs.vm_name }}"
-          workflow:  ${{ github.workflow }}
-          ref_name:  ${{ github.ref_name }}
-          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          job_name:  "🏁 Load test ${{ inputs.vm_name }}"
           details:   "stages=${{ inputs.k6_stages }} target=${{ inputs.app_domain }}"

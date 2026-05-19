@@ -39,6 +39,13 @@ github_repo_url: ""
 github_repo_token: ""
 bot_name: DebtsAppBot
 
+# Local admin accounts (lab/test stand, not for production).
+argocd_admin_username: argo
+argocd_admin_password: argoargo
+sonarqube_admin_password: sonarsonar
+grafana_admin_user: grafana
+grafana_admin_password: grafanagrafana
+
 session_token_lifetime: 1m
 jwt_lifetime: 10m
 link_token_lifetime: 5m

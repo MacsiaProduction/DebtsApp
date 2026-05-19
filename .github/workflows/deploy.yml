@@ -41,7 +41,7 @@ on:
       image_tag:
         description: Тег Docker-образов для deploy
         required: false
-        default: lab4
+        default: latest
         type: string
       cloudflare_zone:
         description: Cloudflare zone, в которой живут DNS-записи
@@ -63,23 +63,19 @@ jobs:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       VM_NAME: ${{ inputs.vm_name }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Notify Telegram (deploy started)
+      - name: Notify Telegram (start)
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
-          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    "started"
-          job_name:  "Deploy ${{ inputs.vm_name }} (start)"
-          workflow:  ${{ github.workflow }}
-          ref_name:  ${{ github.ref_name }}
-          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          job_name:  "🚀 Deploy ${{ inputs.vm_name }}"
           details:   "image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }} grafana=${{ inputs.grafana_domain }} sonar=${{ inputs.sonarqube_domain }} argocd=${{ inputs.argocd_domain }}"
 
-      - name: Set up deploy tooling (Terraform, Python, Ansible, SSH)
+      - name: Set up deploy tooling
         uses: ./.github/actions/setup-deploy-tooling
         with:
           ssh_private_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
@@ -87,36 +83,39 @@ jobs:
       - name: Render Terraform vars and Ansible secrets
         uses: ./.github/actions/prepare-deploy
         with:
-          cloud_id:             ${{ secrets.YC_CLOUD_ID }}
-          folder_id:            ${{ secrets.YC_FOLDER_ID }}
-          ssh_public_key:       ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
-          admin_password_hash:  ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
-          vm_name:              ${{ inputs.vm_name }}
-          zone:                 ${{ inputs.zone }}
-          app_domain:           ${{ inputs.app_domain }}
-          grafana_domain:       ${{ inputs.grafana_domain }}
-          sonarqube_domain:     ${{ inputs.sonarqube_domain }}
-          sonarqube_db_password: ${{ secrets.SONARQUBE_DB_PASSWORD }}
-          argocd_domain:        ${{ inputs.argocd_domain }}
-          acme_email:           ${{ inputs.acme_email }}
-          image_tag:            ${{ inputs.image_tag }}
-          repository_owner:     ${{ github.repository_owner }}
-          ghcr_username:        ${{ secrets.GHCR_PULL_USERNAME }}
-          ghcr_token:           ${{ secrets.GHCR_PULL_TOKEN }}
-          postgres_password:    ${{ secrets.POSTGRES_PASSWORD }}
-          neo4j_password:       ${{ secrets.NEO4J_PASSWORD }}
-          jwt_secret:           ${{ secrets.JWT_SECRET }}
-          grafana_admin_user:   grafana
+          cloud_id:               ${{ secrets.YC_CLOUD_ID }}
+          folder_id:              ${{ secrets.YC_FOLDER_ID }}
+          ssh_public_key:         ${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}
+          admin_password_hash:    ${{ secrets.VM_ADMIN_PASSWORD_HASH }}
+          vm_name:                ${{ inputs.vm_name }}
+          zone:                   ${{ inputs.zone }}
+          app_domain:             ${{ inputs.app_domain }}
+          grafana_domain:         ${{ inputs.grafana_domain }}
+          sonarqube_domain:       ${{ inputs.sonarqube_domain }}
+          sonarqube_db_password:  ${{ secrets.SONARQUBE_DB_PASSWORD }}
+          sonarqube_admin_password: ${{ secrets.SONARQUBE_ADMIN_PASSWORD }}
+          argocd_domain:          ${{ inputs.argocd_domain }}
+          argocd_admin_username:  ${{ secrets.ARGOCD_ADMIN_USERNAME }}
+          argocd_admin_password:  ${{ secrets.ARGOCD_ADMIN_PASSWORD }}
+          acme_email:             ${{ inputs.acme_email }}
+          image_tag:              ${{ inputs.image_tag }}
+          repository_owner:       ${{ github.repository_owner }}
+          ghcr_username:          ${{ secrets.GHCR_PULL_USERNAME }}
+          ghcr_token:             ${{ secrets.GHCR_PULL_TOKEN }}
+          postgres_password:      ${{ secrets.POSTGRES_PASSWORD }}
+          neo4j_password:         ${{ secrets.NEO4J_PASSWORD }}
+          jwt_secret:             ${{ secrets.JWT_SECRET }}
+          grafana_admin_user:     ${{ secrets.GRAFANA_ADMIN_USER }}
           grafana_admin_password: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-          bot_token:            ${{ secrets.BOT_TOKEN }}
-          github_repo_url:      https://github.com/${{ github.repository }}
-          github_repo_token:    ${{ secrets.GHCR_PULL_TOKEN }}
+          bot_token:              ${{ secrets.BOT_TOKEN }}
+          github_repo_url:        https://github.com/${{ github.repository }}
+          github_repo_token:      ${{ secrets.GHCR_PULL_TOKEN }}
 
       - name: Provision VM and prepare inventory
         id: vm
         uses: ./.github/actions/provision-vm
 
-      - name: Upsert Cloudflare DNS records for project subdomains
+      - name: Upsert Cloudflare DNS records
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
           CF_ZONE_NAME:         ${{ inputs.cloudflare_zone }}
@@ -126,28 +125,28 @@ jobs:
           CF_TTL:               "60"
         run: python scripts/cloudflare_upsert_dns.py
 
-      - name: Run Ansible deploy in k3s
+      - name: Run Ansible deploy
         run: ansible-playbook infra/ansible/site.yml -i infra/ansible/inventory.ini
 
       - name: Verify public HTTPS endpoints
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/" >/dev/null
-          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.app_domain }}/api/actuator/health"
-          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.grafana_domain }}/" >/dev/null
-          curl --fail --silent --show-error --user "grafana:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" --max-time 45 "https://${{ inputs.grafana_domain }}/api/user" >/dev/null
-          curl --fail --silent --show-error --location --max-time 45 "https://${{ inputs.argocd_domain }}/" >/dev/null
+          ok() { curl --fail --silent --show-error --location --max-time 45 "$@" >/dev/null; }
+          ok "https://${{ inputs.app_domain }}/"
+          ok "https://${{ inputs.app_domain }}/api/actuator/health"
+          ok "https://${{ inputs.grafana_domain }}/"
+          ok --user "${{ secrets.GRAFANA_ADMIN_USER }}:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" \
+             "https://${{ inputs.grafana_domain }}/api/user"
+          ok "https://${{ inputs.argocd_domain }}/"
+          ok "https://${{ inputs.sonarqube_domain }}/api/system/status"
 
-      - name: Notify Telegram on deploy result
+      - name: Notify Telegram (result)
         if: always()
         continue-on-error: true
         uses: ./.github/actions/notify-telegram
         with:
           bot_token: ${{ secrets.BOT_TOKEN }}
-          chat_ids:   ${{ secrets.TELEGRAM_CHAT_IDS }}
+          chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "Deploy ${{ inputs.vm_name }}"
-          workflow:  ${{ github.workflow }}
-          ref_name:  ${{ github.ref_name }}
-          run_url:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          details:   "VM=${{ inputs.vm_name }} ip=${{ steps.vm.outputs.host }} zone=${{ inputs.zone }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"
+          job_name:  "🌍 Deploy ${{ inputs.vm_name }}"
+          details:   "VM=${{ inputs.vm_name }} ip=${{ steps.vm.outputs.host }} image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }}"
