@@ -5,13 +5,13 @@ configs:
   params:
     server.insecure: true
   cm:
-    # Allow the `{{ argocd_admin_username }}` local account to log in.
+    # Lab stand: disable the chart-generated random admin in favor of `{{ argocd_admin_username }}`.
+    admin.enabled: "false"
     accounts.{{ argocd_admin_username }}: login
   rbac:
     policy.default: ''
     policy.csv: |
       g, {{ argocd_admin_username }}, role:admin
   secret:
-    # Bcrypt hash for the `{{ argocd_admin_username }}` local user.
     extra:
       accounts.{{ argocd_admin_username }}.password: {{ argocd_admin_password_hash | quote }}
