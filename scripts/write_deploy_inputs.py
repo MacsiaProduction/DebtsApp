@@ -59,9 +59,9 @@ def write_deploy_secrets() -> None:
         f"argocd_domain: {yaml_quote(os.environ.get('ARGOCD_DOMAIN', 'argocd.app.macsia.fun'))}",
         f"github_repo_url: {yaml_quote(os.environ.get('GITHUB_REPO_URL', ''))}",
         f"github_repo_token: {yaml_quote(os.environ.get('GITHUB_REPO_TOKEN', ''))}",
-        f"sonarqube_domain: {yaml_quote(os.environ.get('SONARQUBE_DOMAIN', 'sonar.app.macsia.fun'))}",
-        f"sonarqube_db_password: {yaml_quote(os.environ.get('SONARQUBE_DB_PASSWORD', ''))}",
-        f"sonarqube_admin_password: {yaml_quote(os.environ.get('SONARQUBE_ADMIN_PASSWORD', ''))}",
+        f"portainer_domain: {yaml_quote(os.environ.get('PORTAINER_DOMAIN', 'portainer.app.macsia.fun'))}",
+        f"portainer_admin_username: {yaml_quote(os.environ.get('PORTAINER_ADMIN_USERNAME', 'portainer'))}",
+        f"portainer_admin_password: {yaml_quote(os.environ.get('PORTAINER_ADMIN_PASSWORD', ''))}",
         f"argocd_admin_username: {yaml_quote(os.environ.get('ARGOCD_ADMIN_USERNAME', 'argo'))}",
         f"argocd_admin_password: {yaml_quote(os.environ.get('ARGOCD_ADMIN_PASSWORD', ''))}",
     ]

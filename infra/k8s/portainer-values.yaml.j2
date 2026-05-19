@@ -1,0 +1,31 @@
+# Используем chart-default образ portainer/portainer-ce.
+
+service:
+  type: ClusterIP
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: {{ storage_class_name | quote }}
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+  hosts:
+    - host: {{ portainer_domain | quote }}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: portainer-tls
+      hosts:
+        - {{ portainer_domain | quote }}
+
+# Bootstrap идёт через API /api/users/admin/init из Ansible
+# (chart-уровневые admin-secret'ы не поддерживают идемпотентный rerun).
+trusted_origins:
+  enabled: true
+  domains: "https://{{ portainer_domain }}"

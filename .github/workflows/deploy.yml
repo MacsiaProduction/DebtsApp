@@ -13,10 +13,10 @@ on:
         required: false
         default: grafana.app.macsia.fun
         type: string
-      sonarqube_domain:
-        description: Публичный DNS для SonarQube
+      portainer_domain:
+        description: Публичный DNS для Portainer UI
         required: false
-        default: sonar.app.macsia.fun
+        default: portainer.app.macsia.fun
         type: string
       argocd_domain:
         description: Публичный DNS для Argo CD UI
@@ -73,7 +73,7 @@ jobs:
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    "started"
           job_name:  "🚀 Deploy ${{ inputs.vm_name }}"
-          details:   "image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }} grafana=${{ inputs.grafana_domain }} sonar=${{ inputs.sonarqube_domain }} argocd=${{ inputs.argocd_domain }}"
+          details:   "image_tag=${{ inputs.image_tag }} app=${{ inputs.app_domain }} grafana=${{ inputs.grafana_domain }} argocd=${{ inputs.argocd_domain }} portainer=${{ inputs.portainer_domain }}"
 
       - name: Set up deploy tooling
         uses: ./.github/actions/setup-deploy-tooling
@@ -91,9 +91,9 @@ jobs:
           zone:                   ${{ inputs.zone }}
           app_domain:             ${{ inputs.app_domain }}
           grafana_domain:         ${{ inputs.grafana_domain }}
-          sonarqube_domain:       ${{ inputs.sonarqube_domain }}
-          sonarqube_db_password:  ${{ secrets.SONARQUBE_DB_PASSWORD }}
-          sonarqube_admin_password: ${{ secrets.SONARQUBE_ADMIN_PASSWORD }}
+          portainer_domain:       ${{ inputs.portainer_domain }}
+          portainer_admin_username: ${{ secrets.PORTAINER_ADMIN_USERNAME }}
+          portainer_admin_password: ${{ secrets.PORTAINER_ADMIN_PASSWORD }}
           argocd_domain:          ${{ inputs.argocd_domain }}
           argocd_admin_username:  ${{ secrets.ARGOCD_ADMIN_USERNAME }}
           argocd_admin_password:  ${{ secrets.ARGOCD_ADMIN_PASSWORD }}
@@ -120,7 +120,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
           CF_ZONE_NAME:         ${{ inputs.cloudflare_zone }}
           CF_TARGET_IP:         ${{ steps.vm.outputs.host }}
-          CF_RECORDS:           "${{ inputs.app_domain }},${{ inputs.grafana_domain }},${{ inputs.sonarqube_domain }},${{ inputs.argocd_domain }}"
+          CF_RECORDS:           "${{ inputs.app_domain }},${{ inputs.grafana_domain }},${{ inputs.argocd_domain }},${{ inputs.portainer_domain }}"
           CF_PROXIED:           "false"
           CF_TTL:               "60"
         run: python scripts/cloudflare_upsert_dns.py
@@ -138,7 +138,7 @@ jobs:
           ok --user "${{ secrets.GRAFANA_ADMIN_USER }}:${{ secrets.GRAFANA_ADMIN_PASSWORD }}" \
              "https://${{ inputs.grafana_domain }}/api/user"
           ok "https://${{ inputs.argocd_domain }}/"
-          ok "https://${{ inputs.sonarqube_domain }}/api/system/status"
+          ok "https://${{ inputs.portainer_domain }}/api/status"
 
       - name: Notify Telegram (result)
         if: always()

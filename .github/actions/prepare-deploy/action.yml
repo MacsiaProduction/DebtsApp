@@ -45,13 +45,13 @@ inputs:
   bot_token:
     required: false
     default: ""
-  sonarqube_domain:
+  portainer_domain:
     required: false
-    default: sonar.app.macsia.fun
-  sonarqube_db_password:
+    default: portainer.app.macsia.fun
+  portainer_admin_username:
     required: false
-    default: ""
-  sonarqube_admin_password:
+    default: portainer
+  portainer_admin_password:
     required: false
     default: ""
   argocd_domain:
@@ -98,9 +98,9 @@ runs:
         ARGOCD_DOMAIN: ${{ inputs.argocd_domain }}
         GITHUB_REPO_URL: ${{ inputs.github_repo_url }}
         GITHUB_REPO_TOKEN: ${{ inputs.github_repo_token }}
-        SONARQUBE_DOMAIN: ${{ inputs.sonarqube_domain }}
-        SONARQUBE_DB_PASSWORD: ${{ inputs.sonarqube_db_password }}
-        SONARQUBE_ADMIN_PASSWORD: ${{ inputs.sonarqube_admin_password }}
+        PORTAINER_DOMAIN: ${{ inputs.portainer_domain }}
+        PORTAINER_ADMIN_USERNAME: ${{ inputs.portainer_admin_username }}
+        PORTAINER_ADMIN_PASSWORD: ${{ inputs.portainer_admin_password }}
         ARGOCD_ADMIN_USERNAME: ${{ inputs.argocd_admin_username }}
         ARGOCD_ADMIN_PASSWORD: ${{ inputs.argocd_admin_password }}
       run: |
