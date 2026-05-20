@@ -138,6 +138,17 @@
         dest: "{{ manifest_dir }}/portainer-values.yaml"
         mode: "0600"
 
+    - name: Удалить устаревшие манифесты из {{ manifest_dir }}/app
+      # На старых деплоях здесь лежат файлы, удалённые из репозитория
+      # (например 94-sonarqube.yaml). Чистим каталог, чтобы kubectl apply -f
+      # не воссоздал отброшенные ресурсы.
+      ansible.builtin.shell: |
+        set -euo pipefail
+        find {{ manifest_dir }}/app -maxdepth 1 -type f -name '[0-9]*.yaml' -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Удалить устаревший namespace sonarqube
       ansible.builtin.command: kubectl delete namespace sonarqube --ignore-not-found --wait=false
       register: sonarqube_cleanup
