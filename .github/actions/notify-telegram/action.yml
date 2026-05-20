@@ -67,7 +67,7 @@ runs:
         GH_JOB:           ${{ github.job }}
         GH_SHA:           ${{ github.sha }}
         GH_ACTOR:         ${{ github.actor }}
-        GH_RUN_STARTED:   ${{ github.event.repository.updated_at }}
+        GH_RUN_STARTED:   ${{ github.run_started_at }}
         GH_TOKEN:         ${{ inputs.github_token != '' && inputs.github_token || github.token }}
       run: |
         set -u
@@ -82,7 +82,7 @@ runs:
         commit="${GH_SHA:0:7}"
         actor="$GH_ACTOR"
         
-        started=$(date -u -d "${GITHUB_RUN_STARTED_AT:-$(date -u)}" +%s 2>/dev/null || date +%s)
+        started=$(date -u -d "$GH_RUN_STARTED" +%s)
         now=$(date +%s)
         elapsed=$((now-started))
         elapsed_h=$((elapsed/3600))
@@ -151,7 +151,7 @@ runs:
 
         text="${emoji} <b>$(esc "$JOB_NAME")</b>"$'\n'
         text+="Branch: <code>$(esc "$ref_name")</code> · ${STATUS}"$'\n'
-        text+="<a href=\"$(esc "$run_url")\">$(esc "$workflow")</a>"
+        text+="<a href=\"$(esc "$run_url")\">$(esc "$workflow")</a>"'\n'
         text+="Commit: <code>${commit}</code>"$'\n'
         text+="Actor: <b>${actor}</b>"$'\n'
         text+="Duration: <code>${elapsed_text}</code>"$'\n'
@@ -188,8 +188,8 @@ runs:
             -w '\nHTTP:%{http_code}')"
           echo "tg chat=${chat_id}: ${resp}"
         
-          code="$(echo "$response" | grep HTTP | cut -d: -f2)"
-          echo "$response"
+          code="$(echo "$resp" | grep HTTP | cut -d: -f2)"
+          echo "$resp"
           if [ "$code" != "200" ]; then
                 echo "Telegram send failed"
           fi
