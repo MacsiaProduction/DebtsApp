@@ -84,17 +84,13 @@ runs:
         actor="$GH_ACTOR"
         
         elapsed_text="unknown"
-          
+  
         job_json="$(
         curl -sS \
         -H "Authorization: Bearer ${GH_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${GH_REPO}/actions/runs/${GH_RUN_ID}/jobs"
         )"
-        
-        echo "$job_json" | python3 -c '
-        import json,sys
-        data=json.load(sys.stdin)
         
         job_info="$(
         echo "$job_json" |
@@ -103,13 +99,12 @@ runs:
         
         jobs=json.load(sys.stdin).get("jobs", [])
       
-        if not jobs:
-          raise SystemExit()
-        
-          job=max(jobs, key=lambda j: j["started_at"] or "")
+        if jobs:
+          # берём самый недавно стартовавший job
+          job=max(jobs, key=lambda j: j.get("started_at") or "")
           
-          print(job["started_at"] or "")
-          print(job["completed_at"] or "")
+          print(job.get("started_at") or "")
+          print(job.get("completed_at") or "")
           '
         )"
         
@@ -128,8 +123,13 @@ runs:
         end=$(date -u +%s)
         fi
         
-        elapsed=$((end-start))
-        elapsed_text="$((elapsed/3600))h $(((elapsed%3600)/60))m $((elapsed%60))s"
+        elapsed=$((end - start))
+        
+        elapsed_h=$((elapsed / 3600))
+        elapsed_m=$(((elapsed % 3600) / 60))
+        elapsed_s=$((elapsed % 60))
+        
+        elapsed_text="${elapsed_h}h ${elapsed_m}m ${elapsed_s}s"
         fi
         
         case "$STATUS" in
