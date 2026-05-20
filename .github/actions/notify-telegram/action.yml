@@ -91,13 +91,21 @@ runs:
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${GH_REPO}/actions/runs/${GH_RUN_ID}/jobs"
         )"
+        
+        echo "$job_json" | python3 -c '
+        import json,sys
+        data=json.load(sys.stdin)
+      
+        for j in data["jobs"]:
+          print(j["name"])
+          '
           
         job_info="$(
         echo "$job_json" |
         python3 -c '
         import json,sys,os
           
-        target=os.environ["JOB_NAME"]
+        target=os.environ["GH_JOB"]
         jobs=json.load(sys.stdin).get("jobs", [])
         
         for j in jobs:
@@ -109,7 +117,7 @@ runs:
         )"
         
         started_at="$(echo "$job_info" | sed -n '1p')"
-          completed_at="$(echo "$job_info" | sed -n '2p')"
+        completed_at="$(echo "$job_info" | sed -n '2p')"
           
           echo "JOB=$JOB_NAME"
           echo "START=$started_at"
