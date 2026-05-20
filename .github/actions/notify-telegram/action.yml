@@ -65,6 +65,9 @@ runs:
         GH_WORKFLOW:      ${{ github.workflow }}
         GH_REF_NAME:      ${{ github.ref_name }}
         GH_JOB:           ${{ github.job }}
+        GH_SHA:           ${{ github.sha }}
+        GH_ACTOR:         ${{ github.actor }}
+        GH_RUN_STARTED:   ${{ github.event.repository.updated_at }}
         GH_TOKEN:         ${{ inputs.github_token != '' && inputs.github_token || github.token }}
       run: |
         set -u
@@ -76,7 +79,17 @@ runs:
         workflow="${WORKFLOW_OVERRIDE:-$GH_WORKFLOW}"
         ref_name="${REF_OVERRIDE:-$GH_REF_NAME}"
         run_url="${RUN_URL_OVERRIDE:-${GH_SERVER_URL}/${GH_REPO}/actions/runs/${GH_RUN_ID}}"
-
+        commit="${GH_SHA:0:7}"
+        actor="$GH_ACTOR"
+        
+        started=$(date -u -d "${GITHUB_RUN_STARTED_AT:-$(date -u)}" +%s 2>/dev/null || date +%s)
+        now=$(date +%s)
+        elapsed=$((now-started))
+        elapsed_h=$((elapsed/3600))
+        elapsed_m=$(((elapsed%3600)/60))
+        elapsed_s=$((elapsed%60))
+        elapsed_text="${elapsed_h}h ${elapsed_m}m ${elapsed_s}s"
+        
         case "$STATUS" in
           success)   emoji="✅" ;;
           failure)   emoji="❌" ;;
@@ -93,13 +106,27 @@ runs:
         if [ "$STATUS" = "failure" ]; then
           log_payload="$(python3 "${GITHUB_ACTION_PATH}/fetch_failed_log.py" 2>/dev/null || true)"
         fi
+        
+        # mask secrets
+        mask() { 
+          sed -E '
+          s/(TOKEN=)[^ ]+/\1***/g;
+          s/(PASSWORD=)[^ ]+/\1***/g;
+          s/(SECRET=)[^ ]+/\1***/g;
+          s/(KEY=)[^ ]+/\1***/g;
+          s/(AUTH=)[^ ]+/\1***/g;
+          s/(Bearer )[A-Za-z0-9\._\-]+/\1***/g;
+          '
+        }
+        log_payload="$(printf "%s" "$log_payload" | mask)"
+        extra="$(printf "%s" "$EXTRA_DETAILS" | mask)"
 
         # Assemble the collapsed-details payload (extra context + log).
         details_payload=""
-        if [ -n "$EXTRA_DETAILS" ] && [ -n "$log_payload" ]; then
-          details_payload="${EXTRA_DETAILS}"$'\n\n'"${log_payload}"
-        elif [ -n "$EXTRA_DETAILS" ]; then
-          details_payload="$EXTRA_DETAILS"
+        if [ -n "$extra" ] && [ -n "$log_payload" ]; then
+          details_payload="${extra}"$'\n\n'"${log_payload}"
+        elif [ -n "$extra" ]; then
+          details_payload="$extra"
         elif [ -n "$log_payload" ]; then
           details_payload="$log_payload"
         fi
@@ -111,10 +138,23 @@ runs:
             details_payload="…(truncated)…"$'\n'"$(printf '%s' "$details_payload" | tail -c "$max_chars")"
           fi
         fi
+        
+        # pipeline summary grouping
+        summary=""
+
+        if [ "$JOB_NAME" = "Pipeline summary" ]; then
+            summary="<b>Pipeline result:</b>"
+            summary+=$'\n'
+            summary+="$details_payload"
+            details_payload="$summary"
+        fi
 
         text="${emoji} <b>$(esc "$JOB_NAME")</b>"$'\n'
         text+="Branch: <code>$(esc "$ref_name")</code> · ${STATUS}"$'\n'
         text+="<a href=\"$(esc "$run_url")\">$(esc "$workflow")</a>"
+        text+="Commit: <code>${commit}</code>"$'\n'
+        text+="Actor: <b>${actor}</b>"$'\n'
+        text+="Duration: <code>${elapsed_text}</code>"$'\n'
         case "$STATUS" in
           failure|cancelled)
             if [ -n "$details_payload" ]; then
@@ -129,14 +169,28 @@ runs:
         esac
 
         IFS=',' read -ra IDS <<< "$CHAT_IDS"
+        
         for raw_id in "${IDS[@]}"; do
           chat_id="$(echo "$raw_id" | tr -d ' ')"
           [ -z "$chat_id" ] && continue
-          resp="$(curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+        
+          resp="$(
+            curl \
+            --retry 5 \
+            --retry-delay 3 \
+            --retry-all-errors \
+            -sS \
+            -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -d "chat_id=${chat_id}" \
             --data-urlencode "text=${text}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" \
             -w '\nHTTP:%{http_code}')"
           echo "tg chat=${chat_id}: ${resp}"
+        
+          code="$(echo "$response" | grep HTTP | cut -d: -f2)"
+          echo "$response"
+          if [ "$code" != "200" ]; then
+                echo "Telegram send failed"
+          fi
         done
