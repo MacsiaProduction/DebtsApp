@@ -65,6 +65,7 @@ runs:
         GH_WORKFLOW:      ${{ github.workflow }}
         GH_REF_NAME:      ${{ github.ref_name }}
         GH_JOB:           ${{ github.job }}
+        GH_JOB_NAME:      ${{ job.name }}
         GH_SHA:           ${{ github.sha }}
         GH_ACTOR:         ${{ github.actor }}
         GH_RUN_STARTED:   ${{ github.run_started_at }}
@@ -82,13 +83,48 @@ runs:
         commit="${GH_SHA:0:7}"
         actor="$GH_ACTOR"
         
-        started=$(date -u -d "$GH_RUN_STARTED" +%s)
-        now=$(date +%s)
-        elapsed=$((now-started))
-        elapsed_h=$((elapsed/3600))
-        elapsed_m=$(((elapsed%3600)/60))
-        elapsed_s=$((elapsed%60))
-        elapsed_text="${elapsed_h}h ${elapsed_m}m ${elapsed_s}s"
+        # Get actual current job duration via GitHub API
+        elapsed_text="unknown"
+        
+        job_json="$(
+        curl -sS \
+        -H "Authorization: Bearer ${GH_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${GH_REPO}/actions/runs/${GH_RUN_ID}/jobs"
+        )"
+        
+        read started_at completed_at <<< "$(
+        echo "$job_json" |
+        python3 -c '
+        import json,sys,os
+        
+        target=os.environ["GH_JOB_NAME"]
+        data=json.load(sys.stdin)
+      
+        for job in data.get("jobs", []):
+          if job["name"] == target:
+            print(job["started_at"], job["completed_at"] or "")
+            break
+          '
+        )"
+        
+        if [ -n "$started_at" ]; then
+            started_epoch=$(date -u -d "$started_at" +%s)
+        
+            if [ -n "$completed_at" ]; then
+                finished_epoch=$(date -u -d "$completed_at" +%s)
+            else
+                finished_epoch=$(date -u +%s)
+            fi
+        
+            elapsed=$((finished_epoch - started_epoch))
+        
+            elapsed_h=$((elapsed / 3600))
+            elapsed_m=$(((elapsed % 3600) / 60))
+            elapsed_s=$((elapsed % 60))
+        
+            elapsed_text="${elapsed_h}h ${elapsed_m}m ${elapsed_s}s"
+        fi
         
         case "$STATUS" in
           success)   emoji="✅" ;;
@@ -151,7 +187,7 @@ runs:
 
         text="${emoji} <b>$(esc "$JOB_NAME")</b>"$'\n'
         text+="Branch: <code>$(esc "$ref_name")</code> · ${STATUS}"$'\n'
-        text+="<a href=\"$(esc "$run_url")\">$(esc "$workflow")</a>"'\n'
+        text+="<a href=\"$(esc "$run_url")\">$(esc "$workflow")</a>"$'\n'
         text+="Commit: <code>${commit}</code>"$'\n'
         text+="Actor: <b>${actor}</b>"$'\n'
         text+="Duration: <code>${elapsed_text}</code>"$'\n'
