@@ -83,48 +83,50 @@ runs:
         commit="${GH_SHA:0:7}"
         actor="$GH_ACTOR"
         
-        # Get actual current job duration via GitHub API
         elapsed_text="unknown"
-        
+          
         job_json="$(
         curl -sS \
         -H "Authorization: Bearer ${GH_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/${GH_REPO}/actions/runs/${GH_RUN_ID}/jobs?per_page=100"
+        "https://api.github.com/repos/${GH_REPO}/actions/runs/${GH_RUN_ID}/jobs"
         )"
-        
-        read started_at completed_at <<< "$(
+          
+        job_info="$(
         echo "$job_json" |
         python3 -c '
         import json,sys,os
-        
+          
         target=os.environ["JOB_NAME"]
-        data=json.load(sys.stdin)
-      
-        for job in data.get("jobs", []):
-          if job["name"] == target:
-            print(job["started_at"], job["completed_at"] or "")
+        jobs=json.load(sys.stdin).get("jobs", [])
+        
+        for j in jobs:
+          if j["name"] == target:
+            print(j["started_at"])
+            print(j["completed_at"] or "")
             break
           '
         )"
         
-        if [ -n "$started_at" ]; then
-            started_epoch=$(date -u -d "$started_at" +%s)
-        
-            if [ -n "$completed_at" ]; then
-                finished_epoch=$(date -u -d "$completed_at" +%s)
-            else
-                finished_epoch=$(date -u +%s)
-            fi
-        
-            elapsed=$((finished_epoch - started_epoch))
-        
-            elapsed_h=$((elapsed / 3600))
-            elapsed_m=$(((elapsed % 3600) / 60))
-            elapsed_s=$((elapsed % 60))
-        
-            elapsed_text="${elapsed_h}h ${elapsed_m}m ${elapsed_s}s"
-        fi
+        started_at="$(echo "$job_info" | sed -n '1p')"
+          completed_at="$(echo "$job_info" | sed -n '2p')"
+          
+          echo "JOB=$JOB_NAME"
+          echo "START=$started_at"
+          echo "END=$completed_at"
+          
+          if [ -n "$started_at" ]; then
+          start=$(date -u -d "$started_at" +%s)
+          
+          if [ -n "$completed_at" ]; then
+          end=$(date -u -d "$completed_at" +%s)
+          else
+          end=$(date -u +%s)
+          fi
+          
+          elapsed=$((end-start))
+          elapsed_text="$((elapsed/3600))h $(((elapsed%3600)/60))m $((elapsed%60))s"
+          fi
         
         case "$STATUS" in
           success)   emoji="✅" ;;
