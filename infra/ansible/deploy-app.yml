@@ -46,6 +46,17 @@
         - "{{ manifest_dir }}"
         - "{{ manifest_dir }}/app"
 
+    - name: Очистить старые сгенерированные манифесты
+      # На прошлых деплоях здесь лежат файлы, удалённые из репозитория
+      # (например 94-sonarqube.yaml). Чистим каталог до рендеринга, чтобы
+      # kubectl apply -f не воскрешал отброшенные ресурсы.
+      ansible.builtin.shell: |
+        set -euo pipefail
+        find {{ manifest_dir }}/app -maxdepth 1 -type f \( -name '[0-9]*.yaml' -o -name '00-*.yaml' \) -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Добавить Helm-репозитории
       ansible.builtin.command: helm repo add {{ item.name }} {{ item.url }}
       loop: "{{ helm_repos }}"
@@ -137,17 +148,6 @@
         src: "{{ playbook_dir }}/../k8s/portainer-values.yaml.j2"
         dest: "{{ manifest_dir }}/portainer-values.yaml"
         mode: "0600"
-
-    - name: Удалить устаревшие манифесты из {{ manifest_dir }}/app
-      # На старых деплоях здесь лежат файлы, удалённые из репозитория
-      # (например 94-sonarqube.yaml). Чистим каталог, чтобы kubectl apply -f
-      # не воссоздал отброшенные ресурсы.
-      ansible.builtin.shell: |
-        set -euo pipefail
-        find {{ manifest_dir }}/app -maxdepth 1 -type f -name '[0-9]*.yaml' -delete
-      args:
-        executable: /bin/bash
-      changed_when: false
 
     - name: Удалить устаревший namespace sonarqube
       ansible.builtin.command: kubectl delete namespace sonarqube --ignore-not-found --wait=false
