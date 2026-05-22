@@ -51,7 +51,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🧪 Backend unit + coverage ≥80%"
+          job_name:  "backend-test"
 
   backend-build:
     name: "Backend: компиляция"
@@ -79,7 +79,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🔨 Backend компиляция"
+          job_name:  "backend-build"
 
   backend-integration:
     name: "Backend: integration-тесты"
@@ -109,7 +109,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🧪 Backend integration"
+          job_name:  "backend-integration"
 
   frontend-test:
     name: "Frontend: unit-тесты"
@@ -157,7 +157,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🧪 Frontend unit + coverage"
+          job_name:  "frontend-test"
 
   frontend-build:
     name: "Frontend: production-сборка"
@@ -190,7 +190,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🔨 Frontend production build"
+          job_name:  "frontend-build"
 
   sonarqube-scan:
     name: "SonarQube: анализ качества кода"
@@ -247,7 +247,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🛡️ SonarCloud quality gate (≥80% coverage)"
+          job_name:  "sonarqube-scan"
 
   publish-images:
     name: "Docker: публикация образов в GHCR"
@@ -324,7 +324,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "📦 Docker publish (GHCR)"
+          job_name:  "publish-images"
 
   update-argocd-image:
     name: "GitOps: обновить image tag для Argo CD"
@@ -363,7 +363,7 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           chat_ids:  ${{ secrets.TELEGRAM_CHAT_IDS }}
           status:    ${{ job.status }}
-          job_name:  "🔁 GitOps image tag update"
+          job_name:  "update-argocd-image"
 
   pipeline-summary:
     name: "Pipeline: итог CI/CD"
