@@ -1,4 +1,6 @@
 namespace: debtsapp
+appDomain: debtsapp.app.macsia.fun
+storageClassName: local-path
 
 imagePullSecretName: ghcr-pull
 
@@ -16,6 +18,10 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
+  hpa:
+    minReplicas: 1
+    maxReplicas: 5
+    targetCpuUtilization: 15
 
 frontend:
   name: debts-frontend
@@ -31,3 +37,17 @@ frontend:
     limits:
       cpu: 250m
       memory: 256Mi
+
+postgres:
+  image: postgres:15-alpine
+  user: debtsbot
+  database: debtsbot
+  storageSize: 10Gi
+
+neo4j:
+  image: neo4j:5-community
+  user: neo4j
+  storageSize: 10Gi
+
+monitoring:
+  releaseName: monitoring

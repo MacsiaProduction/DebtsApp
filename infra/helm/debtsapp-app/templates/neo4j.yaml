@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: debts-neo4j
-  namespace: {{ app_namespace }}
+  namespace: {{ .Values.namespace }}
 spec:
   selector:
     app: debts-neo4j
@@ -18,7 +18,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: debts-neo4j-headless
-  namespace: {{ app_namespace }}
+  namespace: {{ .Values.namespace }}
 spec:
   clusterIP: None
   selector:
@@ -35,7 +35,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: debts-neo4j
-  namespace: {{ app_namespace }}
+  namespace: {{ .Values.namespace }}
 spec:
   serviceName: debts-neo4j-headless
   replicas: 1
@@ -56,7 +56,7 @@ spec:
               mountPath: /data
       containers:
         - name: neo4j
-          image: neo4j:5-community
+          image: {{ .Values.neo4j.image | quote }}
           ports:
             - containerPort: 7474
               name: http
@@ -64,7 +64,10 @@ spec:
               name: bolt
           env:
             - name: NEO4J_AUTH
-              value: "{{ neo4j_user }}/{{ neo4j_password }}"
+              valueFrom:
+                secretKeyRef:
+                  name: debtsapp-env
+                  key: NEO4J_AUTH
           startupProbe:
             tcpSocket:
               port: 7687
@@ -93,7 +96,7 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: {{ storage_class_name | quote }}
+        storageClassName: {{ .Values.storageClassName | quote }}
         resources:
           requests:
-            storage: {{ neo4j_storage_size }}
+            storage: {{ .Values.neo4j.storageSize }}

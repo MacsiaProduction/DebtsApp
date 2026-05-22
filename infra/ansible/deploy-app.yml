@@ -215,6 +215,28 @@
     - name: Применить манифесты приложения
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
+    - name: Запросить refresh и дождаться синхронизации Argo CD debtsapp
+      ansible.builtin.shell: |
+        set -e
+        kubectl -n argocd annotate application debtsapp \
+          argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+        deadline=$((SECONDS + 360))
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          sync=$(kubectl -n argocd get application debtsapp -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
+          health=$(kubectl -n argocd get application debtsapp -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
+          if [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]; then
+            echo "argocd debtsapp Synced+Healthy"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "argocd debtsapp not Synced+Healthy: sync=$sync health=$health" >&2
+        kubectl -n argocd get application debtsapp -o yaml | tail -60 >&2 || true
+        exit 1
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Проверить ранние ошибки pod
       ansible.builtin.shell: |
         bad="$(kubectl -n {{ app_namespace }} get pods --no-headers \
