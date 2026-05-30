@@ -243,6 +243,11 @@ spec:
         - .spec.volumeClaimTemplates[].apiVersion
         - .spec.volumeClaimTemplates[].kind
         - .spec.volumeClaimTemplates[].status
+    - group: apps
+      kind: Deployment
+      name: debts-bot
+      jsonPointers:
+        - /spec/replicas
   source:
     repoURL: {{ gitops_repo_url | quote }}
     targetRevision: {{ gitops_repo_revision | quote }}
