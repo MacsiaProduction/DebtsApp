@@ -171,6 +171,15 @@
     - name: Применить Argo CD приложения
       ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/app/
 
+    - name: Удалить legacy ServiceMonitor из namespace приложения после миграции
+      ansible.builtin.shell: |
+        if kubectl -n {{ monitoring_namespace }} get servicemonitor debts-bot >/dev/null 2>&1; then
+          kubectl -n {{ app_namespace }} delete servicemonitor debts-bot --ignore-not-found
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Запросить refresh и дождаться синхронизации Argo CD приложений
       ansible.builtin.shell: |
         set -e
