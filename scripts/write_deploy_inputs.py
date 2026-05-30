@@ -59,6 +59,7 @@ def write_deploy_secrets() -> None:
         f"argocd_domain: {yaml_quote(os.environ.get('ARGOCD_DOMAIN', 'argocd.app.macsia.fun'))}",
         f"github_repo_url: {yaml_quote(os.environ.get('GITHUB_REPO_URL', ''))}",
         f"github_repo_token: {yaml_quote(os.environ.get('GITHUB_REPO_TOKEN', ''))}",
+        f"github_repo_revision: {yaml_quote(os.environ.get('GITHUB_REPO_REVISION', 'lab4'))}",
         f"portainer_domain: {yaml_quote(os.environ.get('PORTAINER_DOMAIN', 'portainer.app.macsia.fun'))}",
         f"portainer_admin_username: {yaml_quote(os.environ.get('PORTAINER_ADMIN_USERNAME', 'portainer'))}",
         f"portainer_admin_password: {yaml_quote(os.environ.get('PORTAINER_ADMIN_PASSWORD', ''))}",

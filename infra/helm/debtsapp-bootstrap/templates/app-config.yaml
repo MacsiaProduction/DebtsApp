@@ -1,0 +1,47 @@
+{{- if and .Values.imagePullSecret.username .Values.imagePullSecret.token }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.imagePullSecret.name }}
+  namespace: {{ .Values.appNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: {{ printf "{\"auths\":{\"ghcr.io\":{\"username\":%q,\"password\":%q,\"auth\":%q}}}" .Values.imagePullSecret.username .Values.imagePullSecret.token (printf "%s:%s" .Values.imagePullSecret.username .Values.imagePullSecret.token | b64enc) | b64enc }}
+---
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: debtsapp-env
+  namespace: {{ .Values.appNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+type: Opaque
+stringData:
+  SPRING_DATASOURCE_PASSWORD: {{ .Values.postgres.password | quote }}
+  SPRING_NEO4J_AUTHENTICATION_PASSWORD: {{ .Values.neo4j.password | quote }}
+  NEO4J_AUTH: {{ printf "%s/%s" .Values.neo4j.user .Values.neo4j.password | quote }}
+  JWT_SECRET: {{ .Values.app.jwtSecret | quote }}
+  BOT_TOKEN: {{ .Values.app.botToken | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debtsapp-env
+  namespace: {{ .Values.appNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  SPRING_DATASOURCE_URL: {{ printf "jdbc:postgresql://debts-bot-db:5432/%s" .Values.postgres.database | quote }}
+  SPRING_DATASOURCE_USERNAME: {{ .Values.postgres.user | quote }}
+  SPRING_NEO4J_URI: bolt://debts-neo4j:7687
+  SPRING_NEO4J_AUTHENTICATION_USERNAME: {{ .Values.neo4j.user | quote }}
+  TELEGRAM_BOT_ENABLED: {{ ternary "true" "false" .Values.app.telegramBotEnabled | quote }}
+  BOT_NAME: {{ .Values.app.botName | quote }}
+  SESSION_TOKEN_LIFETIME: {{ .Values.app.sessionTokenLifetime | quote }}
+  JWT_LIFETIME: {{ .Values.app.jwtLifetime | quote }}
+  LINK_TOKEN_LIFETIME: {{ .Values.app.linkTokenLifetime | quote }}
+  APP_JWT_ALLOW_GENERATED_SECRET: "false"
+  APP_CORS_ALLOWED_ORIGIN_PATTERNS: {{ join "," .Values.app.corsAllowedOriginPatterns | quote }}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debtsapp-grafana-dashboard
+  namespace: {{ .Values.monitoringNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    grafana_dashboard: "1"
+data:
+  debtsapp-observability.json: |
+{{ .Files.Get "dashboards/debtsapp-observability.json" | replace "__APP_NAMESPACE__" .Values.appNamespace | indent 4 }}

@@ -1,0 +1,31 @@
+appNamespace: debtsapp
+monitoringNamespace: monitoring
+portainerNamespace: portainer
+appDomain: debtsapp.app.macsia.fun
+argocdDomain: argocd.app.macsia.fun
+acmeEmail: macsia.production@gmail.com
+
+imagePullSecret:
+  name: ghcr-pull
+  username: ""
+  token: ""
+
+postgres:
+  user: debtsbot
+  database: debtsbot
+  password: ""
+
+neo4j:
+  user: neo4j
+  password: ""
+
+app:
+  jwtSecret: ""
+  telegramBotEnabled: true
+  botToken: ""
+  botName: DebtsAppBot
+  sessionTokenLifetime: 1m
+  jwtLifetime: 10m
+  linkTokenLifetime: 5m
+  corsAllowedOriginPatterns:
+    - https://debtsapp.app.macsia.fun

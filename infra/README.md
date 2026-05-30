@@ -142,7 +142,15 @@ See [docs/sonarcloud-setup.md](../docs/sonarcloud-setup.md) for Quality Gate con
 
 ### Argo CD continuous delivery
 
-After images are published to GHCR on branch `lab4`, CI commits new image tags to `infra/helm/debtsapp-app/values.yaml`. Argo CD Application `debtsapp` (installed by Ansible from `infra/k8s/92-argocd-app.yaml.j2`) syncs the Helm chart automatically. Job `argocd-verify` waits for `Healthy` + `Synced` and checks `https://<app_domain>/api/actuator/health`.
+After images are published to GHCR on branch `lab4`, CI commits new image tags to `infra/helm/debtsapp-app/values.yaml`. The bootstrap deploy seeds Argo CD and applies the Applications from `infra/k8s/92-argocd-app.yaml.j2`, which then manage:
+
+- `debtsapp-bootstrap` for shared secrets/config, the TLS issuer, the Grafana dashboard, and the Argo CD ingress
+- `debtsapp` for the frontend, backend, PostgreSQL, Neo4j, HPA, and ServiceMonitor
+- `debtsapp-monitoring` for `kube-prometheus-stack`
+- `debtsapp-portainer` for Portainer
+- `debtsapp-argocd` for the Argo CD Helm release itself
+
+The deploy playbook waits for each Application to reach `Healthy` + `Synced`, then checks `https://<app_domain>/api/actuator/health`.
 
 Initial cluster bootstrap remains the manual **Deploy: VM и приложение** workflow; subsequent releases are GitOps-only.
 

@@ -33,6 +33,7 @@ neo4j_storage_size: 10Gi
 telegram_bot_enabled: true
 github_repo_url: ""
 github_repo_token: ""
+github_repo_revision: lab4
 bot_name: DebtsAppBot
 
 # Local admin accounts (lab/test stand, not for production).

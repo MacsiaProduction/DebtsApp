@@ -110,6 +110,7 @@ jobs:
           bot_token:              ${{ secrets.BOT_TOKEN }}
           github_repo_url:        https://github.com/${{ github.repository }}
           github_repo_token:      ${{ secrets.GHCR_PULL_TOKEN }}
+          github_repo_revision:   ${{ github.ref_name }}
 
       - name: Provision VM and prepare inventory
         id: vm

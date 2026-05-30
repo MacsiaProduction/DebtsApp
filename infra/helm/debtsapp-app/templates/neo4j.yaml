@@ -37,6 +37,11 @@ metadata:
   name: debts-neo4j
   namespace: {{ .Values.namespace }}
 spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  revisionHistoryLimit: 10
   serviceName: debts-neo4j-headless
   replicas: 1
   selector:
@@ -47,21 +52,33 @@ spec:
       labels:
         app: debts-neo4j
     spec:
+      dnsPolicy: ClusterFirst
       initContainers:
         - name: fix-permissions
           image: busybox:1.36
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "chown -R 7474:7474 /data"]
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           volumeMounts:
             - name: data
               mountPath: /data
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
       containers:
         - name: neo4j
           image: {{ .Values.neo4j.image | quote }}
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 7474
               name: http
+              protocol: TCP
             - containerPort: 7687
               name: bolt
+              protocol: TCP
           env:
             - name: NEO4J_AUTH
               valueFrom:
@@ -73,12 +90,14 @@ spec:
               port: 7687
             failureThreshold: 30
             periodSeconds: 10
+            successThreshold: 1
             timeoutSeconds: 5
           readinessProbe:
             tcpSocket:
               port: 7687
             initialDelaySeconds: 20
             periodSeconds: 15
+            successThreshold: 1
             timeoutSeconds: 5
             failureThreshold: 10
           livenessProbe:
@@ -86,17 +105,26 @@ spec:
               port: 7687
             initialDelaySeconds: 60
             periodSeconds: 20
+            successThreshold: 1
             timeoutSeconds: 5
             failureThreshold: 6
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           volumeMounts:
             - name: data
               mountPath: /data
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
         storageClassName: {{ .Values.storageClassName | quote }}
+        volumeMode: Filesystem
         resources:
           requests:
             storage: {{ .Values.neo4j.storageSize }}

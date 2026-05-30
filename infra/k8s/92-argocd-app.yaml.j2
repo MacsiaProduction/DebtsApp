@@ -13,6 +13,220 @@ stringData:
   type: git
 ---
 {% endif %}
+{% set gitops_repo_url = github_repo_url | default('https://github.com/MacsiaProduction/DebtsApp', true) %}
+{% set gitops_repo_revision = github_repo_revision | default('lab4', true) %}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debtsapp-bootstrap
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ gitops_repo_url | quote }}
+    targetRevision: {{ gitops_repo_revision | quote }}
+    path: infra/helm/debtsapp-bootstrap
+    helm:
+      values: |
+        appNamespace: {{ app_namespace | quote }}
+        monitoringNamespace: {{ monitoring_namespace | quote }}
+        portainerNamespace: "portainer"
+        appDomain: {{ app_domain | quote }}
+        argocdDomain: {{ argocd_domain | quote }}
+        acmeEmail: {{ acme_email | quote }}
+        imagePullSecret:
+          name: {{ image_pull_secret_name | quote }}
+          username: {{ (ghcr_username | default('')) | quote }}
+          token: {{ (ghcr_token | default('')) | quote }}
+        postgres:
+          user: {{ postgres_user | quote }}
+          database: {{ postgres_database | quote }}
+          password: {{ postgres_password | quote }}
+        neo4j:
+          user: {{ neo4j_user | quote }}
+          password: {{ neo4j_password | quote }}
+        app:
+          jwtSecret: {{ jwt_secret | quote }}
+          telegramBotEnabled: {{ telegram_bot_enabled | to_json }}
+          botToken: {{ (bot_token | default('')) | quote }}
+          botName: {{ bot_name | quote }}
+          sessionTokenLifetime: {{ session_token_lifetime | quote }}
+          jwtLifetime: {{ jwt_lifetime | quote }}
+          linkTokenLifetime: {{ link_token_lifetime | quote }}
+          corsAllowedOriginPatterns:
+{% for pattern in app_cors_allowed_origin_patterns %}
+            - {{ pattern | quote }}
+{% endfor %}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ app_namespace }}
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debtsapp-argocd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: 9.5.14
+    helm:
+      releaseName: argocd
+      values: |
+        server:
+          insecure: true
+        configs:
+          params:
+            server.insecure: true
+          cm:
+            admin.enabled: "false"
+            accounts.{{ argocd_admin_username }}: login
+          rbac:
+            policy.default: ''
+            policy.csv: |
+              g, {{ argocd_admin_username }}, role:admin
+          secret:
+            extra:
+              accounts.{{ argocd_admin_username }}.password: {{ argocd_admin_password_hash | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debtsapp-monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 85.2.0
+    helm:
+      releaseName: {{ monitoring_release_name }}
+      values: |
+        grafana:
+          adminUser: {{ grafana_admin_user | default('grafana') | quote }}
+          adminPassword: {{ grafana_admin_password | quote }}
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-production
+              traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            hosts:
+              - {{ grafana_domain | quote }}
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - {{ grafana_domain | quote }}
+          sidecar:
+            datasources:
+              defaultDatasourceEnabled: true
+            dashboards:
+              enabled: true
+              searchNamespace: ALL
+              label: grafana_dashboard
+              labelValue: "1"
+        alertmanager:
+          enabled: false
+        prometheus:
+          prometheusSpec:
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelector:
+              matchLabels:
+                release: {{ monitoring_release_name | quote }}
+            serviceMonitorNamespaceSelector:
+              matchNames:
+                - {{ app_namespace | quote }}
+                - {{ monitoring_namespace | quote }}
+        kube-state-metrics:
+          enabled: true
+        nodeExporter:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ monitoring_namespace }}
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debtsapp-portainer
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://portainer.github.io/k8s/
+    chart: portainer
+    targetRevision: 239.2.0
+    helm:
+      releaseName: portainer
+      values: |
+        service:
+          type: ClusterIP
+        persistence:
+          enabled: true
+          size: 5Gi
+          storageClass: {{ storage_class_name | quote }}
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          annotations:
+            cert-manager.io/cluster-issuer: letsencrypt-production
+            traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+          hosts:
+            - host: {{ portainer_domain | quote }}
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: portainer-tls
+              hosts:
+                - {{ portainer_domain | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: portainer
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -23,9 +237,23 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ github_repo_url | default('https://github.com/MacsiaProduction/DebtsApp') | quote }}
-    targetRevision: master
+    repoURL: {{ gitops_repo_url | quote }}
+    targetRevision: {{ gitops_repo_revision | quote }}
     path: infra/helm/debtsapp-app
+    helm:
+      values: |
+        namespace: {{ app_namespace | quote }}
+        appDomain: {{ app_domain | quote }}
+        storageClassName: {{ storage_class_name | quote }}
+        imagePullSecretName: {{ image_pull_secret_name | quote }}
+        monitoring:
+          releaseName: {{ monitoring_release_name | quote }}
+        backend:
+          image:
+            repository: {{ backend_image | regex_replace(':[^:]+$', '') | quote }}
+        frontend:
+          image:
+            repository: {{ frontend_image | regex_replace(':[^:]+$', '') | quote }}
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ app_namespace }}
@@ -34,5 +262,5 @@ spec:
       prune: false
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - ServerSideApply=true
