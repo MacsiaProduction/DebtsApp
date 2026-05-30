@@ -160,10 +160,6 @@ spec:
             serviceMonitorSelector:
               matchLabels:
                 release: {{ monitoring_release_name | quote }}
-            serviceMonitorNamespaceSelector:
-              matchNames:
-                - {{ app_namespace | quote }}
-                - {{ monitoring_namespace | quote }}
         kube-state-metrics:
           enabled: true
         nodeExporter:
@@ -260,6 +256,7 @@ spec:
         imagePullSecretName: {{ image_pull_secret_name | quote }}
         monitoring:
           releaseName: {{ monitoring_release_name | quote }}
+          namespace: {{ monitoring_namespace | quote }}
         backend:
           image:
             repository: {{ backend_image | regex_replace(':[^:]+$', '') | quote }}
