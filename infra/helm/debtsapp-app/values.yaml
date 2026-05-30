@@ -8,7 +8,7 @@ backend:
   name: debts-bot
   image:
     repository: ghcr.io/macsiaproduction/debtsapp-backend
-    tag: sha-0d3c3a3
+    tag: sha-f0339b7
     pullPolicy: Always
   replicas: 1
   resources:
@@ -27,7 +27,7 @@ frontend:
   name: debts-frontend
   image:
     repository: ghcr.io/macsiaproduction/debtsapp-frontend
-    tag: sha-0d3c3a3
+    tag: sha-f0339b7
     pullPolicy: Always
   replicas: 1
   resources:
